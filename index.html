@@ -28,7 +28,6 @@
             <button class="tab" onclick="mostrarSeccion('movimientos', this)">Historial</button>
         </div>
 
-        <!-- SECCIÓN 1: DASHBOARD -->
         <div id="dashboard" class="section active">
             <div class="card">
                 <div class="card-title">
@@ -46,7 +45,6 @@
                 
                 <div id="graficaMesSeleccionado"></div>
 
-                <!-- NUEVO: DISTRIBUCIÓN CON PORCENTAJES -->
                 <h4 style="margin: 20px 0 10px 0; font-size: 14px; color: var(--muted);">Distribución de Gastos</h4>
                 <div id="categoriasGastosUI"></div>
 
@@ -55,7 +53,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 2: REGISTRO UNIFICADO -->
         <div id="registro" class="section">
             <div class="card">
                 <div class="card-title">Registrar Movimiento o Pago</div>
@@ -96,7 +93,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 3: CRÉDITOS Y TARJETAS -->
         <div id="creditos" class="section">
             <div class="card">
                 <div class="card-title">Mis Obligaciones Activas</div>
@@ -134,16 +130,24 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 4: REGLA DEL 5% -->
         <div id="reto" class="section">
             <div class="card">
                 <div class="card-title">Regla de Ahorro del 5%</div>
-                <p style="font-size: 13px; color: var(--muted); margin-top: 0; margin-bottom: 15px;">Tu sistema calculará automáticamente el 5% de los ingresos registrados y medirá tu progreso frente al ahorro real.</p>
+                <p style="font-size: 13px; color: var(--muted); margin-top: 0; margin-bottom: 15px;">Tu sistema calculará el 5% de los ingresos y medirá tu retraso real frente a la meta.</p>
+                
+                <div style="background: var(--soft); border-radius: 14px; padding: 12px; margin-bottom: 15px;">
+                    <label class="label" style="margin-top: 0;">Abono Rápido a la Meta:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="valorAhorroRapido" placeholder="$ Valor ahorrado" style="margin-bottom: 0;">
+                        <button class="btn-primary" id="btnAhorroRapido" onclick="procesarAhorroRapido()" style="width: auto; white-space: nowrap;">Abonar</button>
+                    </div>
+                    <div class="message" id="msjAhorroRapido" style="margin-top: 8px; padding: 8px;"></div>
+                </div>
+
                 <div id="moduloAhorro5">Sincronizando metas...</div>
             </div>
         </div>
 
-        <!-- SECCIÓN 5: HISTORIAL -->
         <div id="movimientos" class="section">
             <div class="card">
                 <div class="card-title">Últimos Movimientos</div>
@@ -152,7 +156,6 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>

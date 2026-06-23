@@ -60,7 +60,7 @@ async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    const datosGuardados = localStorage.getItem("finanzas_cache_v7");
+    const datosGuardados = localStorage.getItem("finanzas_cache_v8");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
@@ -85,7 +85,7 @@ async function cargarDatos() {
         return; 
     }
 
-    localStorage.setItem("finanzas_cache_v7", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v8", JSON.stringify(data));
     estadoApp = {
         creditos: data.creditos || [], tarjetas: data.tarjetas || [],
         comparativoMensual: data.comparativoMensual || [], 
@@ -150,13 +150,11 @@ function cambiarMesDashboard() {
     pintarMetaAhorro(); 
 }
 
-// --- NUEVA LÓGICA: DISTRIBUCIÓN POR PORCENTAJES ---
 function pintarDistribucion(idContenedor, lista, claseBarra) {
     const cont = document.getElementById(idContenedor);
     cont.innerHTML = "";
     if (!lista || lista.length === 0) { cont.innerHTML = `<div class="empty">Sin datos registrados.</div>`; return; }
     
-    // Sumar el total de la lista para calcular el porcentaje real
     const total = lista.reduce((acc, item) => acc + Number(item.valor || 0), 0);
 
     lista.forEach(item => {
@@ -173,6 +171,7 @@ function pintarDistribucion(idContenedor, lista, claseBarra) {
     });
 }
 
+// --- ACTUALIZACIÓN: LA GRAN META DEL AVIÓN ---
 function pintarMetaAhorro() {
     const cont = document.getElementById("moduloAhorro5");
     if (!cont) return;
@@ -185,16 +184,16 @@ function pintarMetaAhorro() {
     const ahorroMes = datosMes.ahorro || 0;
     const metaMes = ingresosMes * 0.05;
     const diffMes = ahorroMes - metaMes;
-    const widthMes = metaMes > 0 ? Math.min((ahorroMes / metaMes) * 100, 100) : 0;
     const colorMes = diffMes < 0 ? "red" : "green";
 
-    let totalIngresos = 0; let totalAhorro = 0;
-    estadoApp.comparativoMensual.forEach(m => { totalIngresos += (m.ingresos || 0); totalAhorro += (m.ahorro || 0); });
-    const metaTotal = totalIngresos * 0.05;
-    const diffTotal = totalAhorro - metaTotal;
+    let totalAhorro = 0;
+    estadoApp.comparativoMensual.forEach(m => { totalAhorro += (m.ahorro || 0); });
+    
+    const META_GLOBAL = 50000000;
+    const porcentajeAvion = Math.min((totalAhorro / META_GLOBAL) * 100, 100);
 
     cont.innerHTML = `
-        <h4 style="margin: 0 0 10px 0; font-size: 14px; color: var(--muted);">Progreso del Mes: ${mesSeleccionado || ''}</h4>
+        <h4 style="margin: 0 0 10px 0; font-size: 14px; color: var(--muted);">Progreso Mensual: ${mesSeleccionado || ''}</h4>
         <div class="stats" style="margin-bottom: 10px;">
             <div class="stat"><div class="label">Ingresos</div><div class="stat-value">${formatoPesos(ingresosMes)}</div></div>
             <div class="stat"><div class="label">Meta (5%)</div><div class="stat-value blue">${formatoPesos(metaMes)}</div></div>
@@ -204,19 +203,29 @@ function pintarMetaAhorro() {
                 <span>Ahorrado este mes</span>
                 <span class="${colorMes}">${formatoPesos(ahorroMes)}</span>
             </div>
-            <div class="bar-bg" style="margin-top: 10px;">
-                <div class="bar bar-ahorro" style="width: ${widthMes}%"></div>
-            </div>
-            <div class="movement-bottom" style="margin-top: 10px;">
-                ${diffMes < 0 ? `Te faltan ${formatoPesos(Math.abs(diffMes))} para cumplir la meta.` : `¡Meta superada por ${formatoPesos(diffMes)}!`}
+            <div class="movement-bottom">
+                ${diffMes < 0 ? `Faltan ${formatoPesos(Math.abs(diffMes))} para tu meta mensual.` : `¡Meta mensual superada por ${formatoPesos(diffMes)}!`}
             </div>
         </div>
 
-        <h4 style="margin: 20px 0 10px 0; font-size: 14px; color: var(--muted);">Acumulado Total Histórico</h4>
-        <div class="debt-card" style="background: transparent; border: 1px solid var(--soft2);">
-            <div class="debt-title" style="font-size: 13px;"><span>Ingresos Totales:</span><span>${formatoPesos(totalIngresos)}</span></div>
-            <div class="debt-title" style="font-size: 13px;"><span>Ahorro Real:</span><span class="${diffTotal < 0 ? 'red' : 'green'}">${formatoPesos(totalAhorro)}</span></div>
-            <div class="debt-title" style="font-size: 13px; color: var(--blue);"><span>Meta Ideal (5%):</span><span>${formatoPesos(metaTotal)}</span></div>
+        <h4 style="margin: 25px 0 10px 0; font-size: 14px; color: var(--muted);">Vuelo hacia los $50 Millones</h4>
+        <div class="debt-card">
+            <div class="debt-title">
+                <span>Progreso Total</span>
+                <span class="blue">${porcentajeAvion.toFixed(2)}%</span>
+            </div>
+
+            <!-- LA PISTA DE ATERRIZAJE Y EL AVIÓN -->
+            <div class="airplane-track">
+                <div class="airplane-fill" style="width: ${porcentajeAvion}%">
+                    <div class="airplane-icon">✈️</div>
+                </div>
+            </div>
+
+            <div class="movement-bottom" style="display: flex; justify-content: space-between; margin-top: 15px;">
+                <span>Ahorrado:<br><strong class="green">${formatoPesos(totalAhorro)}</strong></span>
+                <span style="text-align: right;">Faltan:<br><strong class="red">${formatoPesos(META_GLOBAL - totalAhorro)}</strong></span>
+            </div>
         </div>
     `;
 }

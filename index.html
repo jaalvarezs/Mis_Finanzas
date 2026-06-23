@@ -28,6 +28,7 @@
             <button class="tab" onclick="mostrarSeccion('movimientos', this)">Historial</button>
         </div>
 
+        <!-- SECCIÓN 1: DASHBOARD -->
         <div id="dashboard" class="section active">
             <div class="card">
                 <div class="card-title">
@@ -50,6 +51,7 @@
             </div>
         </div>
 
+        <!-- SECCIÓN 2: REGISTRO UNIFICADO -->
         <div id="registro" class="section">
             <div class="card">
                 <div class="card-title">Registrar Movimiento o Pago</div>
@@ -90,13 +92,46 @@
             </div>
         </div>
 
+        <!-- SECCIÓN 3: CRÉDITOS Y TARJETAS -->
         <div id="creditos" class="section">
             <div class="card">
                 <div class="card-title">Mis Obligaciones Activas</div>
                 <div id="listaDeudasVigentes" class="empty">Cargando portafolio...</div>
             </div>
+
+            <!-- FORMULARIO DE NUEVA OBLIGACIÓN -->
+            <div class="card">
+                <div class="card-title">Agregar Nueva Obligación</div>
+                
+                <label class="label">Tipo de Obligación</label>
+                <select id="tipoNuevaDeuda" onchange="cambiarFormularioDeuda()">
+                    <option value="credito">Crédito (Libre inversión, Vehículo, Almacén)</option>
+                    <option value="tarjeta">Tarjeta de Crédito</option>
+                </select>
+
+                <label class="label">Entidad / Banco</label>
+                <input type="text" id="bancoNuevaDeuda" placeholder="Ej: Bancolombia, Éxito, Fincomercio...">
+
+                <label class="label">Nombre (Ej: Crédito Moto, Tarjeta Visa)</label>
+                <input type="text" id="nombreNuevaDeuda">
+
+                <div class="two-cols">
+                    <div>
+                        <label class="label" id="labelSaldoCupo">Saldo Inicial</label>
+                        <input type="number" id="saldoNuevaDeuda">
+                    </div>
+                    <div>
+                        <label class="label">Día de pago</label>
+                        <input type="number" id="diaPagoNuevaDeuda" placeholder="Ej: 15">
+                    </div>
+                </div>
+
+                <button class="btn-dark" id="btnCrearDeuda" onclick="crearNuevaObligacion()">Crear Registro</button>
+                <div class="message" id="mensajeNuevaDeuda"></div>
+            </div>
         </div>
 
+        <!-- SECCIÓN 4: REGLA DEL 5% -->
         <div id="reto" class="section">
             <div class="card">
                 <div class="card-title">Regla de Ahorro del 5%</div>
@@ -105,6 +140,7 @@
             </div>
         </div>
 
+        <!-- SECCIÓN 5: HISTORIAL -->
         <div id="movimientos" class="section">
             <div class="card">
                 <div class="card-title">Últimos Movimientos</div>
@@ -113,6 +149,7 @@
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>

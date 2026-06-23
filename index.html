@@ -24,11 +24,10 @@
             <button class="tab active" onclick="mostrarSeccion('dashboard', this)">Dashboard</button>
             <button class="tab" onclick="mostrarSeccion('registro', this)">Registrar</button>
             <button class="tab" onclick="mostrarSeccion('creditos', this)">Créditos</button>
-            <button class="tab" onclick="mostrarSeccion('reto', this)">Reto</button>
+            <button class="tab" onclick="mostrarSeccion('reto', this)">Meta 5%</button>
             <button class="tab" onclick="mostrarSeccion('movimientos', this)">Historial</button>
         </div>
 
-        <!-- SECCIÓN 1: DASHBOARD -->
         <div id="dashboard" class="section active">
             <div class="card">
                 <div class="card-title">
@@ -38,11 +37,9 @@
                 <div id="dashboard-content" class="empty">Sincronizando con la base de datos...</div>
             </div>
 
-            <!-- NUEVO: GRÁFICAS Y FILTRO MENSAL -->
             <div class="card">
                 <div class="card-title">
                     <span>Análisis Mensual</span>
-                    <!-- Este es el filtro que controlará la gráfica -->
                     <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; padding: 6px 10px; margin-bottom: 0; font-size: 13px; border-radius: 10px;"></select>
                 </div>
                 
@@ -53,7 +50,6 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 2: REGISTRO UNIFICADO -->
         <div id="registro" class="section">
             <div class="card">
                 <div class="card-title">Registrar Movimiento o Pago</div>
@@ -89,13 +85,11 @@
                 <label class="label">Nota (Opcional)</label>
                 <textarea id="notaRegistro" placeholder="Detalles adicionales..."></textarea>
 
-                <!-- BOTÓN PARA GUARDAR ACTIVADO -->
                 <button class="btn-primary" id="btnGuardarRegistro" onclick="procesarRegistro()">Guardar Registro</button>
                 <div class="message" id="mensajeRegistro"></div>
             </div>
         </div>
 
-        <!-- SECCIÓN 3: CRÉDITOS Y TARJETAS LIMPÍO -->
         <div id="creditos" class="section">
             <div class="card">
                 <div class="card-title">Mis Obligaciones Activas</div>
@@ -104,14 +98,18 @@
         </div>
 
         <div id="reto" class="section">
-            <div class="card"><div class="empty">Módulo de Reto en construcción...</div></div>
+            <div class="card">
+                <div class="card-title">Regla de Ahorro del 5%</div>
+                <p style="font-size: 13px; color: var(--muted); margin-top: 0; margin-bottom: 15px;">Tu sistema calculará automáticamente el 5% de los ingresos registrados y medirá tu progreso frente al ahorro real.</p>
+                <div id="moduloAhorro5">Cargando metas...</div>
+            </div>
         </div>
+
         <div id="movimientos" class="section">
             <div class="card"><div class="empty">Historial en construcción...</div></div>
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>

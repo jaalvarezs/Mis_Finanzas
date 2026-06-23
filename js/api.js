@@ -1,4 +1,4 @@
-const API_URL = 'PEGA_AQUI_LA_URL_QUE_COPIASTE_DE_GOOGLE';
+const API_URL = https://script.google.com/macros/s/AKfycbyKYSYLcX295yFBXTx0pYoMl-7SS_HaCHja6hEs3QH2pyKt-Wz3tlVO1KgTu8UfdpcwBA/exec;
 
 async function enviarDatosAPI(action, payload) {
     if (!navigator.onLine) {

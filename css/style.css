@@ -22,6 +22,7 @@ body {
               radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 32%),
               linear-gradient(180deg, #0f172a 0%, #111827 48%, #020617 100%);
   color: var(--text); min-height: 100vh; padding: 14px;
+  overflow-x: hidden;
 }
 
 .app { max-width: 640px; margin: 0 auto; padding-bottom: 90px; }
@@ -64,7 +65,7 @@ button { border: none; border-radius: 14px; min-height: 46px; padding: 0 14px; f
 .movement-bottom { color: var(--muted); font-size: 12px; margin-top: 5px; font-weight: 700; }
 .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-/* ESTILOS DE GRÁFICAS */
+/* ESTILOS DE GRÁFICAS Y BARRAS */
 .chart-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; align-items: end; height: 170px; padding: 10px 4px 0; }
 .chart-col { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 7px; }
 .chart-bar-wrap { width: 100%; height: 118px; background: var(--soft); border-radius: 16px; display: flex; align-items: flex-end; overflow: hidden; }
@@ -83,28 +84,22 @@ button { border: none; border-radius: 14px; min-height: 46px; padding: 0 14px; f
 .bar.blue-bg { background: linear-gradient(90deg, #38bdf8, #0284c7); }
 
 /* ESTILOS DEL AVIÓN Y LA META */
-.airplane-track {
-  background: var(--soft2);
-  border-radius: 999px;
-  height: 16px;
-  position: relative;
-  margin: 35px 0 15px 0;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+.airplane-track { background: var(--soft2); border-radius: 999px; height: 16px; position: relative; margin: 35px 0 15px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+.airplane-fill { background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%; border-radius: 999px; position: relative; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.airplane-icon { position: absolute; right: -18px; top: -16px; font-size: 28px; transform: rotate(45deg); filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.25)); }
+
+/* MOTOR DE CONFETI */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  z-index: 9999;
+  pointer-events: none;
+  animation: fall linear forwards;
 }
-.airplane-fill {
-  background: linear-gradient(90deg, #38bdf8, #0284c7);
-  height: 100%;
-  border-radius: 999px;
-  position: relative;
-  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.airplane-icon {
-  position: absolute;
-  right: -18px;
-  top: -16px;
-  font-size: 28px;
-  transform: rotate(45deg);
-  filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.25));
+@keyframes fall {
+  0% { top: -10%; transform: translateX(0) rotate(0deg); opacity: 1; }
+  100% { top: 110%; transform: translateX(100px) rotate(720deg); opacity: 0; }
 }
 
 @media (max-width: 420px) {

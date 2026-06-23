@@ -1,3 +1,4 @@
+// --- LÓGICA DE SERVICE WORKER (OFFLINE) ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
 }
@@ -32,9 +33,7 @@ function mostrarMensaje(id, texto) {
 }
 
 // Variables Globales
-let estadoApp = {
-    creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: []
-};
+let estadoApp = { creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: [] };
 
 const categoriasMenu = {
     "Ingreso": ["Salario", "Bonificación", "Pago proveedores", "Regalo", "Venta", "Trabajo extra", "Otro ingreso"],
@@ -44,43 +43,71 @@ const categoriasMenu = {
 
 function cambiarFormularioRegistro() {
     const tipo = document.getElementById("tipoRegistro").value;
-    const grupoCategoria = document.getElementById("grupoCategoria");
-    const grupoDeudas = document.getElementById("grupoDeudas");
     const selectCategoria = document.getElementById("categoriaRegistro");
     
     if (tipo === "Ingreso" || tipo === "Gasto" || tipo === "Ahorro") {
-        grupoCategoria.style.display = "block"; grupoDeudas.style.display = "none";
+        document.getElementById("grupoCategoria").style.display = "block"; 
+        document.getElementById("grupoDeudas").style.display = "none";
         selectCategoria.innerHTML = "";
         categoriasMenu[tipo].forEach(cat => {
             const opt = document.createElement("option"); opt.value = cat; opt.textContent = cat;
             selectCategoria.appendChild(opt);
         });
     } else {
-        grupoCategoria.style.display = "none"; grupoDeudas.style.display = "block";
+        document.getElementById("grupoCategoria").style.display = "none"; 
+        document.getElementById("grupoDeudas").style.display = "block";
         document.getElementById("labelDeuda").innerText = tipo === "PagoCredito" ? "Seleccionar Crédito" : "Seleccionar Tarjeta";
         llenarSelectDeudas(tipo);
     }
 }
 
+// --- CARGA INSTANTÁNEA (CACHÉ LOCAL) ---
 async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
-    divDash.innerHTML = "<div class='empty'>Descargando información desde Google Sheets...</div>";
-    btnAct.innerText = "Cargando..."; btnAct.disabled = true;
 
+    // 1. Mostrar datos en 0.1 segundos desde la memoria del celular
+    const datosGuardados = localStorage.getItem("finanzas_cache_v1");
+    if (datosGuardados) {
+        const data = JSON.parse(datosGuardados);
+        estadoApp = {
+            creditos: data.creditos || [],
+            tarjetas: data.tarjetas || [],
+            comparativoMensual: data.comparativoMensual || [],
+            categoriasGastos: data.categoriasGastos || []
+        };
+        pintarDashboard(data);
+        llenarSelectMeses();
+        cambiarMesDashboard();
+        pintarModuloCreditos();
+        cambiarFormularioRegistro();
+    } else {
+        divDash.innerHTML = "<div class='empty'>Descargando información desde Google Sheets...</div>";
+    }
+
+    btnAct.innerText = "Sincronizando..."; btnAct.disabled = true;
+
+    // 2. Traer datos frescos de Google en silencio
     const data = await enviarDatosAPI("obtenerDashboard", {});
     btnAct.innerText = "Actualizar"; btnAct.disabled = false;
 
-    if (data.error) { divDash.innerHTML = `<div class='empty' style='color:red;'>Error al conectar: ${data.mensaje}</div>`; return; }
+    if (data.error) { 
+        if (!datosGuardados) divDash.innerHTML = `<div class='empty' style='color:red;'>Error al conectar: ${data.mensaje}</div>`; 
+        return; 
+    }
 
-    estadoApp.creditos = data.creditos || [];
-    estadoApp.tarjetas = data.tarjetas || [];
-    estadoApp.comparativoMensual = data.comparativoMensual || [];
-    estadoApp.categoriasGastos = data.categoriasGastos || [];
+    // 3. Guardar lo nuevo en memoria y actualizar pantalla
+    localStorage.setItem("finanzas_cache_v1", JSON.stringify(data));
+    estadoApp = {
+        creditos: data.creditos || [],
+        tarjetas: data.tarjetas || [],
+        comparativoMensual: data.comparativoMensual || [],
+        categoriasGastos: data.categoriasGastos || []
+    };
 
     pintarDashboard(data);
     llenarSelectMeses();
-    cambiarMesDashboard(); // Pintar la gráfica
+    cambiarMesDashboard();
     pintarModuloCreditos();
     cambiarFormularioRegistro();
 }
@@ -98,18 +125,25 @@ function pintarDashboard(data) {
     `;
 }
 
-// --- NUEVO: FUNCIONES DEL FILTRO MENSAL Y GRÁFICAS ---
 function llenarSelectMeses() {
     const select = document.getElementById("filtroMes");
+    const valorPrevio = select.value;
     select.innerHTML = "";
+    
     if (estadoApp.comparativoMensual.length === 0) {
         select.innerHTML = "<option>Sin datos</option>"; return;
     }
+    
     estadoApp.comparativoMensual.forEach(item => {
         const opt = document.createElement("option");
         opt.value = item.mes; opt.textContent = item.mes; select.appendChild(opt);
     });
-    select.selectedIndex = select.options.length - 1; // Selecciona el último por defecto
+    
+    if (valorPrevio && [...select.options].some(o => o.value === valorPrevio)) {
+        select.value = valorPrevio;
+    } else {
+        select.selectedIndex = select.options.length - 1; 
+    }
 }
 
 function cambiarMesDashboard() {
@@ -141,7 +175,7 @@ function pintarTopGastos(idContenedor, lista, claseBarra) {
     cont.innerHTML = "";
     if (!lista || lista.length === 0) { cont.innerHTML = `<div class="empty">Sin datos.</div>`; return; }
     
-    const topLista = lista.slice(0, 5); // Mostrar solo las 5 categorías más altas para no saturar
+    const topLista = lista.slice(0, 5);
     const max = Math.max(...topLista.map(x => Number(x.valor || 0)), 1);
 
     topLista.forEach(item => {
@@ -163,10 +197,10 @@ function pintarModuloCreditos() {
     }
     let html = "";
     estadoApp.creditos.forEach(c => {
-        html += `<div class="debt-card"><div class="debt-title"><span>🏦 ${c.nombre}</span><span class="red">${formatoPesos(c.saldoActual)}</span></div><div class="movement-bottom">${c.entidad} · Cuota programada: ${formatoPesos(c.cuotaActual)}</div></div>`;
+        html += `<div class="debt-card"><div class="debt-title"><span>🏦 ${c.nombre}</span><span class="red">${formatoPesos(c.saldoActual)}</span></div><div class="movement-bottom">${c.entidad} · Cuota: ${formatoPesos(c.cuotaActual)}</div></div>`;
     });
     estadoApp.tarjetas.forEach(t => {
-        html += `<div class="debt-card"><div class="debt-title"><span>💳 ${t.nombre}</span><span class="red">${formatoPesos(t.saldoActual)}</span></div><div class="movement-bottom">Cupo Total: ${formatoPesos(t.cupoTotal)} · Disponible: ${formatoPesos(t.disponible)}</div></div>`;
+        html += `<div class="debt-card"><div class="debt-title"><span>💳 ${t.nombre}</span><span class="red">${formatoPesos(t.saldoActual)}</span></div><div class="movement-bottom">Cupo: ${formatoPesos(t.cupoTotal)} · Disponible: ${formatoPesos(t.disponible)}</div></div>`;
     });
     cont.innerHTML = html;
 }
@@ -183,10 +217,8 @@ function llenarSelectDeudas(tipo) {
     });
 }
 
-// --- NUEVO: FUNCIÓN PARA GUARDAR REGISTROS ---
 async function procesarRegistro() {
     const btn = document.getElementById("btnGuardarRegistro");
-    
     const data = {
         fecha: document.getElementById("fechaRegistro").value,
         tipo: document.getElementById("tipoRegistro").value,
@@ -225,7 +257,7 @@ async function procesarRegistro() {
         document.getElementById("conceptoRegistro").value = "";
         document.getElementById("valorRegistro").value = "";
         document.getElementById("notaRegistro").value = "";
-        cargarDatos(); // Actualiza el dashboard automáticamente
+        cargarDatos(); 
     }
 }
 

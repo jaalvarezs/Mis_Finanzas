@@ -60,7 +60,7 @@ async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    const datosGuardados = localStorage.getItem("finanzas_cache_v8");
+    const datosGuardados = localStorage.getItem("finanzas_cache_v9");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
@@ -85,7 +85,7 @@ async function cargarDatos() {
         return; 
     }
 
-    localStorage.setItem("finanzas_cache_v8", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v9", JSON.stringify(data));
     estadoApp = {
         creditos: data.creditos || [], tarjetas: data.tarjetas || [],
         comparativoMensual: data.comparativoMensual || [], 
@@ -171,7 +171,26 @@ function pintarDistribucion(idContenedor, lista, claseBarra) {
     });
 }
 
-// --- ACTUALIZACIÓN: LA GRAN META DEL AVIÓN ---
+// --- FIESTA DEL PRIMER MILLÓN ---
+function lanzarConfeti() {
+    const colores = ['#22c55e', '#38bdf8', '#fbbf24', '#ef4444', '#a855f7'];
+    for (let i = 0; i < 110; i++) {
+        const confeti = document.createElement('div');
+        confeti.classList.add('confetti');
+        confeti.style.left = Math.random() * 100 + 'vw';
+        confeti.style.backgroundColor = colores[Math.floor(Math.random() * colores.length)];
+        confeti.style.width = (Math.random() * 8 + 6) + 'px';
+        confeti.style.height = (Math.random() * 8 + 6) + 'px';
+        confeti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        confeti.style.animationDelay = (Math.random() * 2) + 's';
+        document.body.appendChild(confeti);
+        setTimeout(() => confeti.remove(), 6000);
+    }
+    setTimeout(() => {
+        alert("✈️ 🎉 ¡FELICITACIONES! Has logrado tu primer millón ahorrado en el sistema. El vuelo hacia los 50 Millones ha despegado con éxito. ¡Sigue así!");
+    }, 600);
+}
+
 function pintarMetaAhorro() {
     const cont = document.getElementById("moduloAhorro5");
     if (!cont) return;
@@ -189,6 +208,12 @@ function pintarMetaAhorro() {
     let totalAhorro = 0;
     estadoApp.comparativoMensual.forEach(m => { totalAhorro += (m.ahorro || 0); });
     
+    // EVALUAR LOGRO DEL MILLÓN
+    if (totalAhorro >= 1000000 && !localStorage.getItem('confeti_1m_logrado')) {
+        localStorage.setItem('confeti_1m_logrado', 'true');
+        lanzarConfeti();
+    }
+
     const META_GLOBAL = 50000000;
     const porcentajeAvion = Math.min((totalAhorro / META_GLOBAL) * 100, 100);
 
@@ -215,7 +240,6 @@ function pintarMetaAhorro() {
                 <span class="blue">${porcentajeAvion.toFixed(2)}%</span>
             </div>
 
-            <!-- LA PISTA DE ATERRIZAJE Y EL AVIÓN -->
             <div class="airplane-track">
                 <div class="airplane-fill" style="width: ${porcentajeAvion}%">
                     <div class="airplane-icon">✈️</div>

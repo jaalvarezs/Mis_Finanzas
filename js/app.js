@@ -29,7 +29,7 @@ function mostrarMensaje(id, texto) {
     setTimeout(() => msj.style.display = "none", 5000);
 }
 
-let estadoApp = { creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: [], ultimosMovimientos: [] };
+let estadoApp = { creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: [], categoriasAhorro: [], ultimosMovimientos: [] };
 
 const categoriasMenu = {
     "Ingreso": ["Salario", "Bonificación", "Pago proveedores", "Regalo", "Venta", "Trabajo extra", "Otro ingreso"],
@@ -60,12 +60,14 @@ async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    const datosGuardados = localStorage.getItem("finanzas_cache_v6");
+    const datosGuardados = localStorage.getItem("finanzas_cache_v7");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
             creditos: data.creditos || [], tarjetas: data.tarjetas || [],
-            comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
+            comparativoMensual: data.comparativoMensual || [], 
+            categoriasGastos: data.categoriasGastos || [],
+            categoriasAhorro: data.categoriasAhorro || [],
             ultimosMovimientos: data.ultimosMovimientos || []
         };
         pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
@@ -83,10 +85,12 @@ async function cargarDatos() {
         return; 
     }
 
-    localStorage.setItem("finanzas_cache_v6", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v7", JSON.stringify(data));
     estadoApp = {
         creditos: data.creditos || [], tarjetas: data.tarjetas || [],
-        comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
+        comparativoMensual: data.comparativoMensual || [], 
+        categoriasGastos: data.categoriasGastos || [],
+        categoriasAhorro: data.categoriasAhorro || [],
         ultimosMovimientos: data.ultimosMovimientos || []
     };
 
@@ -141,22 +145,30 @@ function cambiarMesDashboard() {
       </div>
     `;
 
-    pintarTopGastos("categoriasGastosUI", estadoApp.categoriasGastos, "red-bg");
+    pintarDistribucion("categoriasGastosUI", estadoApp.categoriasGastos, "red-bg");
+    pintarDistribucion("categoriasAhorrosUI", estadoApp.categoriasAhorro, "blue-bg");
     pintarMetaAhorro(); 
 }
 
-function pintarTopGastos(idContenedor, lista, claseBarra) {
+// --- NUEVA LÓGICA: DISTRIBUCIÓN POR PORCENTAJES ---
+function pintarDistribucion(idContenedor, lista, claseBarra) {
     const cont = document.getElementById(idContenedor);
     cont.innerHTML = "";
-    if (!lista || lista.length === 0) { cont.innerHTML = `<div class="empty">Sin datos.</div>`; return; }
+    if (!lista || lista.length === 0) { cont.innerHTML = `<div class="empty">Sin datos registrados.</div>`; return; }
     
-    const topLista = lista.slice(0, 5);
-    const max = Math.max(...topLista.map(x => Number(x.valor || 0)), 1);
+    // Sumar el total de la lista para calcular el porcentaje real
+    const total = lista.reduce((acc, item) => acc + Number(item.valor || 0), 0);
 
-    topLista.forEach(item => {
-        const porcentaje = Math.round((Number(item.valor || 0) / max) * 100);
+    lista.forEach(item => {
+        const porcentaje = total > 0 ? Math.round((Number(item.valor || 0) / total) * 100) : 0;
         const div = document.createElement("div"); div.className = "bar-row";
-        div.innerHTML = `<div class="bar-head"><span>${item.categoria}</span><span>${formatoPesos(item.valor)}</span></div><div class="bar-bg"><div class="bar ${claseBarra}" style="width:${porcentaje}%"></div></div>`;
+        div.innerHTML = `
+            <div class="bar-head">
+                <span>${item.categoria} <span style="font-size: 11px; color: var(--muted); font-weight: 800;">(${porcentaje}%)</span></span>
+                <span>${formatoPesos(item.valor)}</span>
+            </div>
+            <div class="bar-bg"><div class="bar ${claseBarra}" style="width:${porcentaje}%"></div></div>
+        `;
         cont.appendChild(div);
     });
 }
@@ -277,7 +289,6 @@ async function procesarRegistro() {
     }
 }
 
-// --- NUEVA LÓGICA: CREAR DEUDAS ---
 function cambiarFormularioDeuda() {
     const tipo = document.getElementById("tipoNuevaDeuda").value;
     const labelSaldo = document.getElementById("labelSaldoCupo");

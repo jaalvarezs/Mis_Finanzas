@@ -53,7 +53,8 @@ body {
 
 input, select, textarea { width: 100%; border: none; background: var(--soft); border-radius: 14px; padding: 13px; font-size: 15px; font-weight: 700; outline: none; margin-bottom: 10px; }
 textarea { resize: none; min-height: 70px; }
-button { border: none; border-radius: 14px; min-height: 46px; padding: 0 14px; font-size: 14px; font-weight: 900; cursor: pointer; }
+button { border: none; border-radius: 14px; min-height: 46px; padding: 0 14px; font-size: 14px; font-weight: 900; cursor: pointer; transition: opacity 0.2s; }
+button:active { opacity: 0.7; }
 .btn-primary { background: var(--primary); color: white; width: 100%; }
 .btn-blue { background: #e0f2fe; color: #0369a1; }
 .btn-dark { background: #0f172a; color: white; width: 100%; margin-top: 10px; }

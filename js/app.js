@@ -60,8 +60,7 @@ async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    // Le cambiamos el nombre a v5 para borrar el pasado
-    const datosGuardados = localStorage.getItem("finanzas_cache_v5");
+    const datosGuardados = localStorage.getItem("finanzas_cache_v6");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
@@ -84,7 +83,7 @@ async function cargarDatos() {
         return; 
     }
 
-    localStorage.setItem("finanzas_cache_v5", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v6", JSON.stringify(data));
     estadoApp = {
         creditos: data.creditos || [], tarjetas: data.tarjetas || [],
         comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
@@ -220,7 +219,6 @@ function pintarModuloCreditos() {
     cont.innerHTML = html;
 }
 
-// --- NUEVA LÓGICA: HISTORIAL ---
 function pintarHistorial() {
     const cont = document.getElementById("listaMovimientos");
     if (!cont) return;
@@ -276,6 +274,50 @@ async function procesarRegistro() {
     if (!res.error) {
         document.getElementById("conceptoRegistro").value = ""; document.getElementById("valorRegistro").value = ""; document.getElementById("notaRegistro").value = "";
         cargarDatos(); 
+    }
+}
+
+// --- NUEVA LÓGICA: CREAR DEUDAS ---
+function cambiarFormularioDeuda() {
+    const tipo = document.getElementById("tipoNuevaDeuda").value;
+    const labelSaldo = document.getElementById("labelSaldoCupo");
+    labelSaldo.innerText = tipo === "credito" ? "Saldo Actual / Inicial" : "Cupo Total de la Tarjeta";
+}
+
+async function crearNuevaObligacion() {
+    const btn = document.getElementById("btnCrearDeuda");
+    const tipo = document.getElementById("tipoNuevaDeuda").value;
+    const banco = document.getElementById("bancoNuevaDeuda").value;
+    const nombre = document.getElementById("nombreNuevaDeuda").value;
+    const saldoCupo = document.getElementById("saldoNuevaDeuda").value;
+    const diaPago = document.getElementById("diaPagoNuevaDeuda").value;
+
+    if (!banco || !nombre || !saldoCupo) {
+        mostrarMensaje("mensajeNuevaDeuda", "Completa la entidad, nombre y saldo/cupo.");
+        return;
+    }
+
+    btn.disabled = true; btn.innerText = "Creando...";
+    let action = ""; let payload = {};
+
+    if (tipo === "credito") {
+        action = "registrarCredito";
+        payload = { nombre: nombre, entidad: banco, tipoCredito: "Otro crédito", saldoActual: saldoCupo, saldoInicial: saldoCupo, diaPago: diaPago };
+    } else {
+        action = "registrarTarjeta";
+        payload = { nombre: nombre, banco: banco, cupoTotal: saldoCupo, saldoActual: 0, diaPago: diaPago };
+    }
+
+    const res = await enviarDatosAPI(action, payload);
+    btn.disabled = false; btn.innerText = "Crear Registro";
+    mostrarMensaje("mensajeNuevaDeuda", res.mensaje);
+
+    if (!res.error) {
+        document.getElementById("bancoNuevaDeuda").value = "";
+        document.getElementById("nombreNuevaDeuda").value = "";
+        document.getElementById("saldoNuevaDeuda").value = "";
+        document.getElementById("diaPagoNuevaDeuda").value = "";
+        cargarDatos();
     }
 }
 

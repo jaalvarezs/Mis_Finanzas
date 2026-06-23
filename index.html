@@ -37,6 +37,20 @@
                 </div>
                 <div id="dashboard-content" class="empty">Sincronizando con la base de datos...</div>
             </div>
+
+            <!-- NUEVO: GRÁFICAS Y FILTRO MENSAL -->
+            <div class="card">
+                <div class="card-title">
+                    <span>Análisis Mensual</span>
+                    <!-- Este es el filtro que controlará la gráfica -->
+                    <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; padding: 6px 10px; margin-bottom: 0; font-size: 13px; border-radius: 10px;"></select>
+                </div>
+                
+                <div id="graficaMesSeleccionado"></div>
+
+                <h4 style="margin: 20px 0 10px 0; font-size: 14px; color: var(--muted);">Top Gastos</h4>
+                <div id="categoriasGastosUI"></div>
+            </div>
         </div>
 
         <!-- SECCIÓN 2: REGISTRO UNIFICADO -->
@@ -56,13 +70,11 @@
                     <option value="PagoTarjeta">Abono / Compra con Tarjeta</option>
                 </select>
 
-                <!-- Grupo Dinámico: Categorías para Ingresos/Gastos/Ahorro -->
                 <div id="grupoCategoria">
                     <label class="label">Categoría</label>
                     <select id="categoriaRegistro"></select>
                 </div>
 
-                <!-- Grupo Dinámico: Lista de Deudas (Solo visible si es Pago) -->
                 <div id="grupoDeudas" style="display: none;">
                     <label class="label" id="labelDeuda">Seleccionar Obligación</label>
                     <select id="deudaSeleccionada"></select>
@@ -77,6 +89,7 @@
                 <label class="label">Nota (Opcional)</label>
                 <textarea id="notaRegistro" placeholder="Detalles adicionales..."></textarea>
 
+                <!-- BOTÓN PARA GUARDAR ACTIVADO -->
                 <button class="btn-primary" id="btnGuardarRegistro" onclick="procesarRegistro()">Guardar Registro</button>
                 <div class="message" id="mensajeRegistro"></div>
             </div>
@@ -88,42 +101,14 @@
                 <div class="card-title">Mis Obligaciones Activas</div>
                 <div id="listaDeudasVigentes" class="empty">Cargando portafolio...</div>
             </div>
-
-            <div class="card">
-                <div class="card-title">Agregar Nueva Obligación</div>
-                
-                <label class="label">Tipo de Obligación</label>
-                <select id="tipoNuevaDeuda" onchange="cambiarFormularioDeuda()">
-                    <option value="credito">Crédito (Libre inversión, Vehículo, Hipotecario, Almacén)</option>
-                    <option value="tarjeta">Tarjeta de Crédito</option>
-                </select>
-
-                <label class="label">Nombre (Ej: Éxito, Bancolombia Moto)</label>
-                <input type="text" id="nombreNuevaDeuda">
-
-                <div class="two-cols">
-                    <div>
-                        <label class="label" id="labelSaldoCupo">Saldo Inicial</label>
-                        <input type="number" id="saldoNuevaDeuda">
-                    </div>
-                    <div>
-                        <label class="label">Día de pago</label>
-                        <input type="number" id="diaPagoNuevaDeuda" placeholder="Ej: 15">
-                    </div>
-                </div>
-
-                <button class="btn-dark" onclick="crearNuevaObligacion()">Crear Registro</button>
-            </div>
         </div>
 
-        <!-- SECCIÓN 4 Y 5: RETO E HISTORIAL (Placeholders por ahora) -->
         <div id="reto" class="section">
             <div class="card"><div class="empty">Módulo de Reto en construcción...</div></div>
         </div>
         <div id="movimientos" class="section">
             <div class="card"><div class="empty">Historial en construcción...</div></div>
         </div>
-
     </div>
 
     <!-- Scripts -->

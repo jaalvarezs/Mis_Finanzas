@@ -1,0 +1,21 @@
+{
+  "name": "Pro.Tech Finanzas",
+  "short_name": "Finanzas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://drive.google.com/thumbnail?id=1mQejhLWstIc980d-lR6s8zNQS6UEBkvZ&sz=w192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://drive.google.com/thumbnail?id=1mQejhLWstIc980d-lR6s8zNQS6UEBkvZ&sz=w512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

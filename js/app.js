@@ -60,7 +60,7 @@ async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    const datosGuardados = localStorage.getItem("finanzas_cache_v9");
+    const datosGuardados = localStorage.getItem("finanzas_cache_v10");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
@@ -85,7 +85,7 @@ async function cargarDatos() {
         return; 
     }
 
-    localStorage.setItem("finanzas_cache_v9", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v10", JSON.stringify(data));
     estadoApp = {
         creditos: data.creditos || [], tarjetas: data.tarjetas || [],
         comparativoMensual: data.comparativoMensual || [], 
@@ -171,7 +171,6 @@ function pintarDistribucion(idContenedor, lista, claseBarra) {
     });
 }
 
-// --- FIESTA DEL PRIMER MILLÓN ---
 function lanzarConfeti() {
     const colores = ['#22c55e', '#38bdf8', '#fbbf24', '#ef4444', '#a855f7'];
     for (let i = 0; i < 110; i++) {
@@ -191,6 +190,7 @@ function lanzarConfeti() {
     }, 600);
 }
 
+// --- ACTUALIZADO: META 5% CON RETRASO EXPLICITO ---
 function pintarMetaAhorro() {
     const cont = document.getElementById("moduloAhorro5");
     if (!cont) return;
@@ -199,16 +199,13 @@ function pintarMetaAhorro() {
     const mesSeleccionado = selectMes ? selectMes.value : null;
     const datosMes = estadoApp.comparativoMensual.find(m => m.mes === mesSeleccionado) || { ingresos: 0, ahorro: 0 };
 
-    const ingresosMes = datosMes.ingresos || 0;
-    const ahorroMes = datosMes.ahorro || 0;
-    const metaMes = ingresosMes * 0.05;
-    const diffMes = ahorroMes - metaMes;
-    const colorMes = diffMes < 0 ? "red" : "green";
-
-    let totalAhorro = 0;
-    estadoApp.comparativoMensual.forEach(m => { totalAhorro += (m.ahorro || 0); });
+    let totalIngresos = 0; let totalAhorro = 0;
+    estadoApp.comparativoMensual.forEach(m => { totalIngresos += (m.ingresos || 0); totalAhorro += (m.ahorro || 0); });
     
-    // EVALUAR LOGRO DEL MILLÓN
+    // El retraso o excedente acumulado
+    const metaTotal = totalIngresos * 0.05;
+    const diffTotal = totalAhorro - metaTotal; 
+
     if (totalAhorro >= 1000000 && !localStorage.getItem('confeti_1m_logrado')) {
         localStorage.setItem('confeti_1m_logrado', 'true');
         lanzarConfeti();
@@ -218,19 +215,19 @@ function pintarMetaAhorro() {
     const porcentajeAvion = Math.min((totalAhorro / META_GLOBAL) * 100, 100);
 
     cont.innerHTML = `
-        <h4 style="margin: 0 0 10px 0; font-size: 14px; color: var(--muted);">Progreso Mensual: ${mesSeleccionado || ''}</h4>
-        <div class="stats" style="margin-bottom: 10px;">
-            <div class="stat"><div class="label">Ingresos</div><div class="stat-value">${formatoPesos(ingresosMes)}</div></div>
-            <div class="stat"><div class="label">Meta (5%)</div><div class="stat-value blue">${formatoPesos(metaMes)}</div></div>
-        </div>
-        <div class="debt-card">
-            <div class="debt-title">
-                <span>Ahorrado este mes</span>
-                <span class="${colorMes}">${formatoPesos(ahorroMes)}</span>
+        <h4 style="margin: 0 0 10px 0; font-size: 14px; color: var(--muted);">Balance Histórico de Ahorro</h4>
+        <div class="debt-card" style="background: transparent; border: 1px solid var(--soft2);">
+            <div class="debt-title" style="font-size: 13px;"><span>Ingresos Históricos:</span><span>${formatoPesos(totalIngresos)}</span></div>
+            <div class="debt-title" style="font-size: 13px; color: var(--blue);"><span>Ahorro Ideal (5%):</span><span>${formatoPesos(metaTotal)}</span></div>
+            <div class="debt-title" style="font-size: 13px;"><span>Ahorro Real:</span><span class="${diffTotal < 0 ? 'red' : 'green'}">${formatoPesos(totalAhorro)}</span></div>
+            
+            <hr style="border: 0; border-top: 1px dashed var(--muted); margin: 8px 0;">
+            
+            <div class="debt-title" style="font-size: 14px; margin-bottom:0;">
+                <span>${diffTotal < 0 ? '⚠️ Déficit / Retraso:' : '✅ Ahorro a favor:'}</span>
+                <span class="${diffTotal < 0 ? 'red' : 'green'}">${formatoPesos(Math.abs(diffTotal))}</span>
             </div>
-            <div class="movement-bottom">
-                ${diffMes < 0 ? `Faltan ${formatoPesos(Math.abs(diffMes))} para tu meta mensual.` : `¡Meta mensual superada por ${formatoPesos(diffMes)}!`}
-            </div>
+            ${diffTotal < 0 ? `<div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Le debes este dinero a tu propia bolsa de ahorros.</div>` : ''}
         </div>
 
         <h4 style="margin: 25px 0 10px 0; font-size: 14px; color: var(--muted);">Vuelo hacia los $50 Millones</h4>
@@ -252,6 +249,37 @@ function pintarMetaAhorro() {
             </div>
         </div>
     `;
+}
+
+// --- NUEVA LÓGICA: ABONO RÁPIDO ---
+async function procesarAhorroRapido() {
+    const valorInput = document.getElementById("valorAhorroRapido").value;
+    
+    if (!valorInput || valorInput <= 0) {
+        mostrarMensaje("msjAhorroRapido", "Ingresa un valor válido.");
+        return;
+    }
+
+    const btn = document.getElementById("btnAhorroRapido");
+    btn.disabled = true; btn.innerText = "...";
+
+    const payload = {
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: "Ahorro",
+        categoria: "Ahorro personal",
+        concepto: "Abono directo a meta",
+        valor: valorInput,
+        nota: "Registrado desde acceso rápido Meta 5%"
+    };
+
+    const res = await enviarDatosAPI("registrarMovimiento", payload);
+    btn.disabled = false; btn.innerText = "Abonar";
+    mostrarMensaje("msjAhorroRapido", res.mensaje);
+
+    if (!res.error) {
+        document.getElementById("valorAhorroRapido").value = "";
+        cargarDatos(); 
+    }
 }
 
 function pintarModuloCreditos() {

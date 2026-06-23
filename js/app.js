@@ -1,4 +1,3 @@
-// --- LÓGICA DE SERVICE WORKER (OFFLINE) ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
 }
@@ -30,8 +29,7 @@ function mostrarMensaje(id, texto) {
     setTimeout(() => msj.style.display = "none", 5000);
 }
 
-// Variables Globales
-let estadoApp = { creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: [] };
+let estadoApp = { creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: [], ultimosMovimientos: [] };
 
 const categoriasMenu = {
     "Ingreso": ["Salario", "Bonificación", "Pago proveedores", "Regalo", "Venta", "Trabajo extra", "Otro ingreso"],
@@ -62,16 +60,17 @@ async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    // Forzamos el cambio de nombre del caché para que no colapse al actualizar la app
-    const datosGuardados = localStorage.getItem("finanzas_cache_v2");
+    // Le cambiamos el nombre a v5 para borrar el pasado
+    const datosGuardados = localStorage.getItem("finanzas_cache_v5");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
             creditos: data.creditos || [], tarjetas: data.tarjetas || [],
-            comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || []
+            comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
+            ultimosMovimientos: data.ultimosMovimientos || []
         };
         pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
-        pintarModuloCreditos(); cambiarFormularioRegistro();
+        pintarModuloCreditos(); pintarHistorial(); cambiarFormularioRegistro();
     } else {
         divDash.innerHTML = "<div class='empty'>Descargando información desde Google Sheets...</div>";
     }
@@ -85,14 +84,15 @@ async function cargarDatos() {
         return; 
     }
 
-    localStorage.setItem("finanzas_cache_v2", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v5", JSON.stringify(data));
     estadoApp = {
         creditos: data.creditos || [], tarjetas: data.tarjetas || [],
-        comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || []
+        comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
+        ultimosMovimientos: data.ultimosMovimientos || []
     };
 
     pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
-    pintarModuloCreditos(); cambiarFormularioRegistro();
+    pintarModuloCreditos(); pintarHistorial(); cambiarFormularioRegistro();
 }
 
 function pintarDashboard(data) {
@@ -143,7 +143,7 @@ function cambiarMesDashboard() {
     `;
 
     pintarTopGastos("categoriasGastosUI", estadoApp.categoriasGastos, "red-bg");
-    pintarMetaAhorro(); // Dispara la actualización del panel del 5%
+    pintarMetaAhorro(); 
 }
 
 function pintarTopGastos(idContenedor, lista, claseBarra) {
@@ -162,7 +162,6 @@ function pintarTopGastos(idContenedor, lista, claseBarra) {
     });
 }
 
-// --- NUEVA LÓGICA: REGLA DEL 5% ---
 function pintarMetaAhorro() {
     const cont = document.getElementById("moduloAhorro5");
     if (!cont) return;
@@ -171,7 +170,6 @@ function pintarMetaAhorro() {
     const mesSeleccionado = selectMes ? selectMes.value : null;
     const datosMes = estadoApp.comparativoMensual.find(m => m.mes === mesSeleccionado) || { ingresos: 0, ahorro: 0 };
 
-    // Cálculos del Mes Actual
     const ingresosMes = datosMes.ingresos || 0;
     const ahorroMes = datosMes.ahorro || 0;
     const metaMes = ingresosMes * 0.05;
@@ -179,7 +177,6 @@ function pintarMetaAhorro() {
     const widthMes = metaMes > 0 ? Math.min((ahorroMes / metaMes) * 100, 100) : 0;
     const colorMes = diffMes < 0 ? "red" : "green";
 
-    // Cálculos Acumulados (Últimos meses)
     let totalIngresos = 0; let totalAhorro = 0;
     estadoApp.comparativoMensual.forEach(m => { totalIngresos += (m.ingresos || 0); totalAhorro += (m.ahorro || 0); });
     const metaTotal = totalIngresos * 0.05;
@@ -220,6 +217,37 @@ function pintarModuloCreditos() {
     let html = "";
     estadoApp.creditos.forEach(c => { html += `<div class="debt-card"><div class="debt-title"><span>🏦 ${c.nombre}</span><span class="red">${formatoPesos(c.saldoActual)}</span></div><div class="movement-bottom">${c.entidad} · Cuota: ${formatoPesos(c.cuotaActual)}</div></div>`; });
     estadoApp.tarjetas.forEach(t => { html += `<div class="debt-card"><div class="debt-title"><span>💳 ${t.nombre}</span><span class="red">${formatoPesos(t.saldoActual)}</span></div><div class="movement-bottom">Cupo: ${formatoPesos(t.cupoTotal)} · Disponible: ${formatoPesos(t.disponible)}</div></div>`; });
+    cont.innerHTML = html;
+}
+
+// --- NUEVA LÓGICA: HISTORIAL ---
+function pintarHistorial() {
+    const cont = document.getElementById("listaMovimientos");
+    if (!cont) return;
+
+    if (!estadoApp.ultimosMovimientos || estadoApp.ultimosMovimientos.length === 0) {
+        cont.innerHTML = `<div class="empty">Aún no hay movimientos registrados.</div>`;
+        return;
+    }
+
+    let html = "";
+    estadoApp.ultimosMovimientos.forEach(m => {
+        let colorClase = m.tipo === "Ingreso" ? "green" : m.tipo === "Gasto" ? "red" : "blue";
+        let signo = m.tipo === "Ingreso" ? "+" : "-";
+
+        html += `
+        <div class="debt-card" style="padding: 12px;">
+            <div class="debt-title" style="margin-bottom: 6px;">
+                <span>${m.concepto}</span>
+                <span class="${colorClase}">${signo} ${formatoPesos(m.valor)}</span>
+            </div>
+            <div class="movement-bottom" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>${m.fechaTexto} · ${m.categoria}</span>
+                <span style="font-size: 10px; background: rgba(255,255,255,0.5); padding: 3px 8px; border-radius: 6px; color: var(--text);">${m.tipo}</span>
+            </div>
+            ${m.nota ? `<div style="font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; border-top: 1px solid var(--soft2); padding-top: 8px;">${m.nota}</div>` : ""}
+        </div>`;
+    });
     cont.innerHTML = html;
 }
 

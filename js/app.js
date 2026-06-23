@@ -26,9 +26,7 @@ function formatoPesos(valor) {
 }
 
 function mostrarMensaje(id, texto) {
-    const msj = document.getElementById(id);
-    msj.innerText = texto;
-    msj.style.display = "block";
+    const msj = document.getElementById(id); msj.innerText = texto; msj.style.display = "block";
     setTimeout(() => msj.style.display = "none", 5000);
 }
 
@@ -50,8 +48,7 @@ function cambiarFormularioRegistro() {
         document.getElementById("grupoDeudas").style.display = "none";
         selectCategoria.innerHTML = "";
         categoriasMenu[tipo].forEach(cat => {
-            const opt = document.createElement("option"); opt.value = cat; opt.textContent = cat;
-            selectCategoria.appendChild(opt);
+            const opt = document.createElement("option"); opt.value = cat; opt.textContent = cat; selectCategoria.appendChild(opt);
         });
     } else {
         document.getElementById("grupoCategoria").style.display = "none"; 
@@ -61,33 +58,25 @@ function cambiarFormularioRegistro() {
     }
 }
 
-// --- CARGA INSTANTÁNEA (CACHÉ LOCAL) ---
 async function cargarDatos() {
     const divDash = document.getElementById("dashboard-content");
     const btnAct = document.querySelector(".btn-blue");
 
-    // 1. Mostrar datos en 0.1 segundos desde la memoria del celular
-    const datosGuardados = localStorage.getItem("finanzas_cache_v1");
+    // Forzamos el cambio de nombre del caché para que no colapse al actualizar la app
+    const datosGuardados = localStorage.getItem("finanzas_cache_v2");
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         estadoApp = {
-            creditos: data.creditos || [],
-            tarjetas: data.tarjetas || [],
-            comparativoMensual: data.comparativoMensual || [],
-            categoriasGastos: data.categoriasGastos || []
+            creditos: data.creditos || [], tarjetas: data.tarjetas || [],
+            comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || []
         };
-        pintarDashboard(data);
-        llenarSelectMeses();
-        cambiarMesDashboard();
-        pintarModuloCreditos();
-        cambiarFormularioRegistro();
+        pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
+        pintarModuloCreditos(); cambiarFormularioRegistro();
     } else {
         divDash.innerHTML = "<div class='empty'>Descargando información desde Google Sheets...</div>";
     }
 
     btnAct.innerText = "Sincronizando..."; btnAct.disabled = true;
-
-    // 2. Traer datos frescos de Google en silencio
     const data = await enviarDatosAPI("obtenerDashboard", {});
     btnAct.innerText = "Actualizar"; btnAct.disabled = false;
 
@@ -96,20 +85,14 @@ async function cargarDatos() {
         return; 
     }
 
-    // 3. Guardar lo nuevo en memoria y actualizar pantalla
-    localStorage.setItem("finanzas_cache_v1", JSON.stringify(data));
+    localStorage.setItem("finanzas_cache_v2", JSON.stringify(data));
     estadoApp = {
-        creditos: data.creditos || [],
-        tarjetas: data.tarjetas || [],
-        comparativoMensual: data.comparativoMensual || [],
-        categoriasGastos: data.categoriasGastos || []
+        creditos: data.creditos || [], tarjetas: data.tarjetas || [],
+        comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || []
     };
 
-    pintarDashboard(data);
-    llenarSelectMeses();
-    cambiarMesDashboard();
-    pintarModuloCreditos();
-    cambiarFormularioRegistro();
+    pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
+    pintarModuloCreditos(); cambiarFormularioRegistro();
 }
 
 function pintarDashboard(data) {
@@ -129,21 +112,13 @@ function llenarSelectMeses() {
     const select = document.getElementById("filtroMes");
     const valorPrevio = select.value;
     select.innerHTML = "";
-    
-    if (estadoApp.comparativoMensual.length === 0) {
-        select.innerHTML = "<option>Sin datos</option>"; return;
-    }
+    if (estadoApp.comparativoMensual.length === 0) { select.innerHTML = "<option>Sin datos</option>"; return; }
     
     estadoApp.comparativoMensual.forEach(item => {
-        const opt = document.createElement("option");
-        opt.value = item.mes; opt.textContent = item.mes; select.appendChild(opt);
+        const opt = document.createElement("option"); opt.value = item.mes; opt.textContent = item.mes; select.appendChild(opt);
     });
-    
-    if (valorPrevio && [...select.options].some(o => o.value === valorPrevio)) {
-        select.value = valorPrevio;
-    } else {
-        select.selectedIndex = select.options.length - 1; 
-    }
+    if (valorPrevio && [...select.options].some(o => o.value === valorPrevio)) { select.value = valorPrevio; } 
+    else { select.selectedIndex = select.options.length - 1; }
 }
 
 function cambiarMesDashboard() {
@@ -168,6 +143,7 @@ function cambiarMesDashboard() {
     `;
 
     pintarTopGastos("categoriasGastosUI", estadoApp.categoriasGastos, "red-bg");
+    pintarMetaAhorro(); // Dispara la actualización del panel del 5%
 }
 
 function pintarTopGastos(idContenedor, lista, claseBarra) {
@@ -181,82 +157,96 @@ function pintarTopGastos(idContenedor, lista, claseBarra) {
     topLista.forEach(item => {
         const porcentaje = Math.round((Number(item.valor || 0) / max) * 100);
         const div = document.createElement("div"); div.className = "bar-row";
-        div.innerHTML = `
-          <div class="bar-head"><span>${item.categoria}</span><span>${formatoPesos(item.valor)}</span></div>
-          <div class="bar-bg"><div class="bar ${claseBarra}" style="width:${porcentaje}%"></div></div>
-        `;
+        div.innerHTML = `<div class="bar-head"><span>${item.categoria}</span><span>${formatoPesos(item.valor)}</span></div><div class="bar-bg"><div class="bar ${claseBarra}" style="width:${porcentaje}%"></div></div>`;
         cont.appendChild(div);
     });
+}
+
+// --- NUEVA LÓGICA: REGLA DEL 5% ---
+function pintarMetaAhorro() {
+    const cont = document.getElementById("moduloAhorro5");
+    if (!cont) return;
+
+    const selectMes = document.getElementById("filtroMes");
+    const mesSeleccionado = selectMes ? selectMes.value : null;
+    const datosMes = estadoApp.comparativoMensual.find(m => m.mes === mesSeleccionado) || { ingresos: 0, ahorro: 0 };
+
+    // Cálculos del Mes Actual
+    const ingresosMes = datosMes.ingresos || 0;
+    const ahorroMes = datosMes.ahorro || 0;
+    const metaMes = ingresosMes * 0.05;
+    const diffMes = ahorroMes - metaMes;
+    const widthMes = metaMes > 0 ? Math.min((ahorroMes / metaMes) * 100, 100) : 0;
+    const colorMes = diffMes < 0 ? "red" : "green";
+
+    // Cálculos Acumulados (Últimos meses)
+    let totalIngresos = 0; let totalAhorro = 0;
+    estadoApp.comparativoMensual.forEach(m => { totalIngresos += (m.ingresos || 0); totalAhorro += (m.ahorro || 0); });
+    const metaTotal = totalIngresos * 0.05;
+    const diffTotal = totalAhorro - metaTotal;
+
+    cont.innerHTML = `
+        <h4 style="margin: 0 0 10px 0; font-size: 14px; color: var(--muted);">Progreso del Mes: ${mesSeleccionado || ''}</h4>
+        <div class="stats" style="margin-bottom: 10px;">
+            <div class="stat"><div class="label">Ingresos</div><div class="stat-value">${formatoPesos(ingresosMes)}</div></div>
+            <div class="stat"><div class="label">Meta (5%)</div><div class="stat-value blue">${formatoPesos(metaMes)}</div></div>
+        </div>
+        <div class="debt-card">
+            <div class="debt-title">
+                <span>Ahorrado este mes</span>
+                <span class="${colorMes}">${formatoPesos(ahorroMes)}</span>
+            </div>
+            <div class="bar-bg" style="margin-top: 10px;">
+                <div class="bar bar-ahorro" style="width: ${widthMes}%"></div>
+            </div>
+            <div class="movement-bottom" style="margin-top: 10px;">
+                ${diffMes < 0 ? `Te faltan ${formatoPesos(Math.abs(diffMes))} para cumplir la meta.` : `¡Meta superada por ${formatoPesos(diffMes)}!`}
+            </div>
+        </div>
+
+        <h4 style="margin: 20px 0 10px 0; font-size: 14px; color: var(--muted);">Acumulado Total Histórico</h4>
+        <div class="debt-card" style="background: transparent; border: 1px solid var(--soft2);">
+            <div class="debt-title" style="font-size: 13px;"><span>Ingresos Totales:</span><span>${formatoPesos(totalIngresos)}</span></div>
+            <div class="debt-title" style="font-size: 13px;"><span>Ahorro Real:</span><span class="${diffTotal < 0 ? 'red' : 'green'}">${formatoPesos(totalAhorro)}</span></div>
+            <div class="debt-title" style="font-size: 13px; color: var(--blue);"><span>Meta Ideal (5%):</span><span>${formatoPesos(metaTotal)}</span></div>
+        </div>
+    `;
 }
 
 function pintarModuloCreditos() {
     const cont = document.getElementById("listaDeudasVigentes");
     cont.innerHTML = "";
-    if (estadoApp.creditos.length === 0 && estadoApp.tarjetas.length === 0) {
-        cont.innerHTML = `<div class="empty">No tienes deudas activas.</div>`; return;
-    }
+    if (estadoApp.creditos.length === 0 && estadoApp.tarjetas.length === 0) { cont.innerHTML = `<div class="empty">No tienes deudas activas.</div>`; return; }
     let html = "";
-    estadoApp.creditos.forEach(c => {
-        html += `<div class="debt-card"><div class="debt-title"><span>🏦 ${c.nombre}</span><span class="red">${formatoPesos(c.saldoActual)}</span></div><div class="movement-bottom">${c.entidad} · Cuota: ${formatoPesos(c.cuotaActual)}</div></div>`;
-    });
-    estadoApp.tarjetas.forEach(t => {
-        html += `<div class="debt-card"><div class="debt-title"><span>💳 ${t.nombre}</span><span class="red">${formatoPesos(t.saldoActual)}</span></div><div class="movement-bottom">Cupo: ${formatoPesos(t.cupoTotal)} · Disponible: ${formatoPesos(t.disponible)}</div></div>`;
-    });
+    estadoApp.creditos.forEach(c => { html += `<div class="debt-card"><div class="debt-title"><span>🏦 ${c.nombre}</span><span class="red">${formatoPesos(c.saldoActual)}</span></div><div class="movement-bottom">${c.entidad} · Cuota: ${formatoPesos(c.cuotaActual)}</div></div>`; });
+    estadoApp.tarjetas.forEach(t => { html += `<div class="debt-card"><div class="debt-title"><span>💳 ${t.nombre}</span><span class="red">${formatoPesos(t.saldoActual)}</span></div><div class="movement-bottom">Cupo: ${formatoPesos(t.cupoTotal)} · Disponible: ${formatoPesos(t.disponible)}</div></div>`; });
     cont.innerHTML = html;
 }
 
 function llenarSelectDeudas(tipo) {
     const select = document.getElementById("deudaSeleccionada"); select.innerHTML = "";
     const lista = tipo === "PagoCredito" ? estadoApp.creditos : estadoApp.tarjetas;
-    if (lista.length === 0) {
-        const opt = document.createElement("option"); opt.value = ""; opt.textContent = "No tienes deudas registradas"; select.appendChild(opt); return;
-    }
-    lista.forEach(item => {
-        const opt = document.createElement("option"); opt.value = tipo === "PagoCredito" ? item.idCredito : item.idTarjeta;
-        opt.textContent = `${item.nombre} - Saldo: ${formatoPesos(item.saldoActual)}`; select.appendChild(opt);
-    });
+    if (lista.length === 0) { const opt = document.createElement("option"); opt.value = ""; opt.textContent = "No tienes deudas registradas"; select.appendChild(opt); return; }
+    lista.forEach(item => { const opt = document.createElement("option"); opt.value = tipo === "PagoCredito" ? item.idCredito : item.idTarjeta; opt.textContent = `${item.nombre} - Saldo: ${formatoPesos(item.saldoActual)}`; select.appendChild(opt); });
 }
 
 async function procesarRegistro() {
     const btn = document.getElementById("btnGuardarRegistro");
-    const data = {
-        fecha: document.getElementById("fechaRegistro").value,
-        tipo: document.getElementById("tipoRegistro").value,
-        concepto: document.getElementById("conceptoRegistro").value,
-        valor: document.getElementById("valorRegistro").value,
-        nota: document.getElementById("notaRegistro").value
-    };
-
-    if (data.tipo === "Ingreso" || data.tipo === "Gasto" || data.tipo === "Ahorro") {
-        data.categoria = document.getElementById("categoriaRegistro").value;
-    } else {
-        data.categoria = "Deudas";
-        data.idDeuda = document.getElementById("deudaSeleccionada").value;
-    }
-
-    if (!data.fecha || !data.concepto || !data.valor) {
-        mostrarMensaje("mensajeRegistro", "Completa fecha, concepto y valor."); return;
-    }
+    const data = { fecha: document.getElementById("fechaRegistro").value, tipo: document.getElementById("tipoRegistro").value, concepto: document.getElementById("conceptoRegistro").value, valor: document.getElementById("valorRegistro").value, nota: document.getElementById("notaRegistro").value };
+    if (data.tipo === "Ingreso" || data.tipo === "Gasto" || data.tipo === "Ahorro") { data.categoria = document.getElementById("categoriaRegistro").value; } else { data.categoria = "Deudas"; data.idDeuda = document.getElementById("deudaSeleccionada").value; }
+    if (!data.fecha || !data.concepto || !data.valor) { mostrarMensaje("mensajeRegistro", "Completa fecha, concepto y valor."); return; }
 
     btn.disabled = true; btn.innerText = "Guardando...";
     let action = "registrarMovimiento"; let payload = data;
-
-    if (data.tipo === "PagoCredito") {
-        action = "registrarPagoCredito";
-        payload = { idCredito: data.idDeuda, fecha: data.fecha, valorPagado: data.valor, registrarComoGasto: true, nota: data.nota };
-    } else if (data.tipo === "PagoTarjeta") {
-        action = "registrarMovimientoTarjeta";
-        payload = { idTarjeta: data.idDeuda, tipoMovimiento: "Pago", fecha: data.fecha, valorBase: data.valor, registrarGasto: true, nota: data.nota };
-    }
+    if (data.tipo === "PagoCredito") { action = "registrarPagoCredito"; payload = { idCredito: data.idDeuda, fecha: data.fecha, valorPagado: data.valor, registrarComoGasto: true, nota: data.nota }; } 
+    else if (data.tipo === "PagoTarjeta") { action = "registrarMovimientoTarjeta"; payload = { idTarjeta: data.idDeuda, tipoMovimiento: "Pago", fecha: data.fecha, valorBase: data.valor, registrarGasto: true, nota: data.nota }; }
 
     const res = await enviarDatosAPI(action, payload);
     btn.disabled = false; btn.innerText = "Guardar Registro";
     mostrarMensaje("mensajeRegistro", res.mensaje);
     
     if (!res.error) {
-        document.getElementById("conceptoRegistro").value = "";
-        document.getElementById("valorRegistro").value = "";
-        document.getElementById("notaRegistro").value = "";
+        document.getElementById("conceptoRegistro").value = ""; document.getElementById("valorRegistro").value = ""; document.getElementById("notaRegistro").value = "";
         cargarDatos(); 
     }
 }

@@ -3,166 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro.Tech Finanzas</title>
+    <title>Control Financiero</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
-    <meta name="theme-color" content="#060b19" id="metaTheme">
+    <meta name="theme-color" content="#0b132b">
 </head>
 <body>
     <div class="app">
-        <!-- HEADER GLASSMORPHISM -->
+        <!-- HEADER -->
         <header class="hero">
-            <div class="app-header">
+            <div class="hero-left">
                 <img class="app-icon" src="https://drive.google.com/thumbnail?id=1mQejhLWstIc980d-lR6s8zNQS6UEBkvZ&sz=w512" alt="Icono">
                 <div>
-                    <h1>Control Financiero</h1>
-                    <span id="estadoConexion" class="badge">Iniciando...</span>
+                    <h1 class="hero-title">Control Financiero</h1>
+                    <div class="hero-status" id="estadoConexion">Online • Sincronizado</div>
                 </div>
             </div>
-            <!-- BOTÓN MODO DÍA/NOCHE -->
-            <button class="theme-btn" onclick="toggleTheme()" id="btnTheme">☀️</button>
+            <div class="bell-icon">
+                🔔
+                <div class="bell-badge">2</div>
+            </div>
         </header>
-
-        <!-- TABS NEON CON ÍCONOS -->
-        <div class="tabs">
-            <button class="tab active" onclick="mostrarSeccion('dashboard', this)">
-                <span class="tab-icon">📊</span><span>Inicio</span>
-            </button>
-            <button class="tab" onclick="mostrarSeccion('registro', this)">
-                <span class="tab-icon">✍️</span><span>Registrar</span>
-            </button>
-            <button class="tab" onclick="mostrarSeccion('creditos', this)">
-                <span class="tab-icon">🏦</span><span>Créditos</span>
-            </button>
-            <button class="tab" onclick="mostrarSeccion('reto', this)">
-                <span class="tab-icon">🎯</span><span>Meta 5%</span>
-            </button>
-            <button class="tab" onclick="mostrarSeccion('movimientos', this)">
-                <span class="tab-icon">🕰️</span><span>Historial</span>
-            </button>
-        </div>
 
         <!-- SECCIÓN 1: DASHBOARD -->
         <div id="dashboard" class="section active">
             <div class="card">
-                <div class="card-title">
-                    <span>Resumen General</span>
-                    <button class="btn-blue mini-btn" onclick="cargarDatos()">↻ Actualizar</button>
+                <div class="card-header">
+                    <span class="card-title">Resumen General</span>
+                    <span style="color:var(--color-blue); font-size:20px; cursor:pointer;" onclick="cargarDatos()">↻</span>
                 </div>
-                <div id="dashboard-content" class="empty">Sincronizando base de datos...</div>
+                <div id="dashboard-content" class="empty">Sincronizando...</div>
             </div>
 
             <div class="card">
-                <div class="card-title">
-                    <span>Análisis Mensual</span>
-                    <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; padding: 6px 12px; margin-bottom: 0; font-size: 13px; border-radius: 10px;"></select>
+                <div class="card-header">
+                    <span class="card-title">Top Gastos</span>
+                    <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; margin: 0; padding: 6px 12px; background: var(--bg-input);"></select>
                 </div>
-                
-                <h4 style="margin: 20px 0 12px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Desglose de Gastos</h4>
                 <div id="categoriasGastosUI"></div>
-
-                <h4 style="margin: 25px 0 12px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Desglose de Ahorro</h4>
+                <div class="card-header" style="margin-top: 20px;">
+                    <span class="card-title">Top Ahorros</span>
+                </div>
                 <div id="categoriasAhorrosUI"></div>
             </div>
         </div>
 
-        <!-- SECCIÓN 2: REGISTRO UNIFICADO -->
+        <!-- SECCIÓN 2: REGISTRAR (EXACTO IMAGEN 6) -->
         <div id="registro" class="section">
-            <div class="card">
-                <div class="card-title">Añadir Transacción</div>
+            <h2 class="reg-title">Registrar movimiento</h2>
+            <p class="reg-sub">Registra ingresos, gastos, ahorros o pagos de forma fácil.</p>
+            
+            <label class="label">Tipo de operación</label>
+            <div class="type-selector" id="tipoSelectorUI">
+                <div class="type-btn" onclick="seleccionarTipo('Ingreso', this)">⬆️ Ingreso</div>
+                <div class="type-btn active" onclick="seleccionarTipo('Gasto', this)">⬇️ Gasto</div>
+                <div class="type-btn" onclick="seleccionarTipo('Ahorro', this)">🐷 Ahorro</div>
+                <div class="type-btn" onclick="seleccionarTipo('PagoCredito', this)">💳 Crédito</div>
+            </div>
 
-                <label class="label">Fecha</label>
-                <input type="date" id="fechaRegistro">
-
-                <label class="label">Tipo de Operación</label>
-                <select id="tipoRegistro" onchange="cambiarFormularioRegistro()">
-                    <option value="Gasto">⬇️ Gasto General</option>
-                    <option value="Ingreso">⬆️ Ingreso</option>
-                    <option value="Ahorro">💰 Ahorro Personal</option>
-                    <option value="PagoCredito">🏦 Abono a Crédito</option>
-                    <option value="PagoTarjeta">💳 Compra/Abono Tarjeta</option>
-                </select>
-
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label class="label">Fecha</label>
+                    <input type="date" id="fechaRegistro">
+                </div>
                 <div id="grupoCategoria">
                     <label class="label">Categoría</label>
                     <select id="categoriaRegistro"></select>
                 </div>
-
-                <div id="grupoDeudas" style="display: none;">
-                    <label class="label" id="labelDeuda">Seleccionar Obligación</label>
-                    <select id="deudaSeleccionada"></select>
-                </div>
-
-                <label class="label">Concepto</label>
-                <input type="text" id="conceptoRegistro" placeholder="Ej: Compra de alimentos...">
-
-                <label class="label">Valor ($)</label>
-                <input type="number" id="valorRegistro" placeholder="$ 0">
-
-                <label class="label">Nota (Opcional)</label>
-                <textarea id="notaRegistro" placeholder="Añade detalles aquí..."></textarea>
-
-                <button class="btn-primary" id="btnGuardarRegistro" onclick="procesarRegistro()" style="margin-top: 10px;">Añadir Transacción</button>
-                <div class="message" id="mensajeRegistro" style="display:none; margin-top: 15px; text-align:center;"></div>
             </div>
+
+            <div id="grupoDeudas" style="display: none;">
+                <label class="label">Crédito activo</label>
+                <select id="deudaSeleccionada"></select>
+            </div>
+
+            <label class="label">Concepto</label>
+            <input type="text" id="conceptoRegistro" placeholder="📄 Ej: Compra de alimentos">
+
+            <label class="label">Valor ($)</label>
+            <div class="valor-display">
+                <span>$</span> <div id="pantallaValor">0</div>
+            </div>
+
+            <!-- TECLADO NUMÉRICO NATIVO -->
+            <div class="keypad">
+                <div class="key" onclick="tecla(1)">1</div><div class="key" onclick="tecla(2)">2</div><div class="key" onclick="tecla(3)">3</div>
+                <div class="key" onclick="tecla(4)">4</div><div class="key" onclick="tecla(5)">5</div><div class="key" onclick="tecla(6)">6</div>
+                <div class="key" onclick="tecla(7)">7</div><div class="key" onclick="tecla(8)">8</div><div class="key" onclick="tecla(9)">9</div>
+                <div class="key" style="color:var(--color-red);" onclick="teclaC()">C</div><div class="key" onclick="tecla(0)">0</div><div class="key" onclick="teclaDel()">⌫</div>
+            </div>
+
+            <label class="label">Nota (opcional)</label>
+            <textarea id="notaRegistro" placeholder="💬 Ej: Pago mínimo, abono a capital..."></textarea>
+
+            <button class="btn-main" id="btnGuardarRegistro" onclick="procesarRegistro()">Guardar registro</button>
+            <div class="message" id="mensajeRegistro"></div>
         </div>
 
-        <!-- SECCIÓN 3: CRÉDITOS Y TARJETAS -->
+        <!-- SECCIÓN 3: CRÉDITOS -->
         <div id="creditos" class="section">
-            <div class="card">
-                <div class="card-title">Obligaciones Activas</div>
-                <div id="listaDeudasVigentes" class="empty">Cargando portafolio...</div>
+            <div class="card-header">
+                <h2 class="reg-title">Obligaciones activas</h2>
+                <span style="color:var(--color-blue); font-size:13px; font-weight:600; cursor:pointer;" onclick="mostrarSeccion('formCredito', document.getElementById('nav-creditos'))">+ Agregar</span>
             </div>
-
+            <div id="listaDeudasVigentes" class="empty">Cargando portafolio...</div>
+        </div>
+        
+        <!-- SUB-SECCIÓN: AÑADIR CRÉDITO -->
+        <div id="formCredito" class="section">
             <div class="card">
-                <div class="card-title">Agregar Obligación</div>
-                <label class="label">Tipo</label>
-                <select id="tipoNuevaDeuda" onchange="cambiarFormularioDeuda()">
-                    <option value="credito">Crédito (Libre inversión, Vehículo)</option>
-                    <option value="tarjeta">Tarjeta de Crédito</option>
-                </select>
-                <label class="label">Entidad / Banco</label>
-                <input type="text" id="bancoNuevaDeuda" placeholder="Ej: Bancolombia">
-                <label class="label">Nombre</label>
-                <input type="text" id="nombreNuevaDeuda" placeholder="Ej: Crédito Automóvil">
-                <div class="two-cols">
-                    <div><label class="label" id="labelSaldoCupo">Saldo Inicial</label><input type="number" id="saldoNuevaDeuda"></div>
-                    <div><label class="label">Día pago</label><input type="number" id="diaPagoNuevaDeuda"></div>
-                </div>
-                <button class="btn-dark" id="btnCrearDeuda" onclick="crearNuevaObligacion()" style="margin-top: 10px;">Crear Obligación</button>
-                <div class="message" id="mensajeNuevaDeuda"></div>
+                <div class="card-title">Nueva Obligación</div>
+                <label class="label">Tipo</label><select id="tipoNuevaDeuda"><option value="credito">Crédito</option><option value="tarjeta">Tarjeta</option></select>
+                <label class="label">Banco</label><input type="text" id="bancoNuevaDeuda" placeholder="Ej: Bancolombia">
+                <label class="label">Nombre</label><input type="text" id="nombreNuevaDeuda" placeholder="Ej: Crédito Moto">
+                <label class="label">Saldo/Cupo</label><input type="number" id="saldoNuevaDeuda">
+                <label class="label">Día pago</label><input type="number" id="diaPagoNuevaDeuda">
+                <button class="btn-main" onclick="crearNuevaObligacion()">Crear</button>
             </div>
         </div>
 
-        <!-- SECCIÓN 4: REGLA DEL 5% -->
+        <!-- SECCIÓN 4: META 5% (EXACTO IMAGEN 2) -->
         <div id="reto" class="section">
-            <div class="card">
-                <div class="card-title">Meta de Ahorro 5%</div>
-                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 15px; line-height: 1.4;">El sistema calcula automáticamente el 5% de tus ingresos y mide tu progreso frente al ahorro real.</p>
-                
-                <div style="background: var(--input-bg); border: 1px solid var(--card-border); border-radius: 18px; padding: 16px; margin-bottom: 25px;">
-                    <label class="label" style="margin-top: 0; color: var(--blue);">⚡ Abono Rápido</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="number" id="valorAhorroRapido" placeholder="$ Valor" style="margin-bottom: 0;">
-                        <button class="btn-blue" id="btnAhorroRapido" onclick="procesarAhorroRapido()" style="width: auto; min-width: 100px;">Abonar</button>
-                    </div>
-                    <div class="message" id="msjAhorroRapido"></div>
+            <div class="card-header">
+                <div>
+                    <h2 class="reg-title">Meta de ahorro 5%</h2>
+                    <p class="dash-label" style="margin-top:4px;">Tu sistema calcula automáticamente el 5% de tus ingresos y mide tu progreso frente al ahorro real.</p>
                 </div>
-
-                <div id="moduloAhorro5">Sincronizando metas...</div>
             </div>
+            <div id="moduloAhorro5">Calculando métricas...</div>
         </div>
 
-        <!-- SECCIÓN 5: HISTORIAL -->
+        <!-- SECCIÓN 5: HISTORIAL (EXACTO IMAGEN 1) -->
         <div id="movimientos" class="section">
-            <div class="card">
-                <div class="card-title">Últimos movimientos</div>
-                <div id="listaMovimientos" class="empty">Cargando historial...</div>
+            <div class="card-header" style="margin-bottom: 5px;">
+                <h2 class="reg-title">Últimos movimientos</h2>
             </div>
+            <p class="dash-label" style="margin-bottom: 20px;" id="countHistorial">Mostrando movimientos</p>
+            <div id="listaMovimientos" class="empty">Cargando historial...</div>
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- BOTTOM NAVIGATION BAR (COMO EN LAS IMÁGENES) -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" id="nav-inicio" onclick="mostrarSeccion('dashboard', this)">
+            <div class="nav-icon">🏠</div><span>Inicio</span>
+        </div>
+        <div class="nav-item" onclick="mostrarSeccion('registro', this)">
+            <div class="nav-icon">✏️</div><span>Registrar</span>
+        </div>
+        <div class="nav-item" id="nav-creditos" onclick="mostrarSeccion('creditos', this)">
+            <div class="nav-icon">🏛️</div><span>Créditos</span>
+        </div>
+        <div class="nav-item" onclick="mostrarSeccion('reto', this)">
+            <div class="nav-icon">🎯</div><span>Meta</span>
+        </div>
+        <div class="nav-item" onclick="mostrarSeccion('movimientos', this)">
+            <div class="nav-icon">🕒</div><span>Historial</span>
+        </div>
+    </nav>
+
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
 </body>

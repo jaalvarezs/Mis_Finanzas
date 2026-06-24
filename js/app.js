@@ -71,10 +71,10 @@ function seleccionarTipo(tipo, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v16");
+    const cached = localStorage.getItem("finanzas_cache_v17");
     if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v16", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v17", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
 function refrescarUI() {
@@ -95,21 +95,21 @@ function pintarDashboard() {
                 <div class="dash-summary-icon bg-g">💵</div>
                 <div>
                     <div class="label" style="margin:0;">Ingresos</div>
-                    <div class="dash-summary-val text-g">$ ${formatoPesos(m.ingresos)} <span style="font-size:12px;">↗</span></div>
+                    <div class="dash-summary-val text-g">$ ${formatoPesos(m.ingresos)}</div>
                 </div>
             </div>
             <div class="dash-summary-item">
                 <div class="dash-summary-icon bg-r">💳</div>
                 <div>
                     <div class="label" style="margin:0;">Gastos</div>
-                    <div class="dash-summary-val text-r">$ ${formatoPesos(m.gastos)} <span style="font-size:12px;">↗</span></div>
+                    <div class="dash-summary-val text-r">$ ${formatoPesos(m.gastos)}</div>
                 </div>
             </div>
             <div class="dash-summary-item full">
                 <div class="dash-summary-icon bg-b">🐷</div>
                 <div>
                     <div class="label" style="margin:0;">Ahorro</div>
-                    <div class="dash-summary-val text-b">$ ${formatoPesos(m.ahorro)} <span style="font-size:12px;">↗</span></div>
+                    <div class="dash-summary-val text-b">$ ${formatoPesos(m.ahorro)}</div>
                 </div>
             </div>
         </div>
@@ -134,7 +134,7 @@ function pintarPieChartGastos(lista) {
     const cont = document.getElementById("pieChartGastosUI");
     if (!lista || lista.length === 0) { cont.innerHTML = '<div class="empty">Sin gastos registrados.</div>'; return; }
 
-    const top = lista.slice(0, 5); // Tomamos los top 5
+    const top = lista.slice(0, 5);
     const totalTop = top.reduce((a, b) => a + Number(b.valor || 0), 0);
     if(totalTop === 0) { cont.innerHTML = '<div class="empty">Sin gastos.</div>'; return; }
 
@@ -147,11 +147,9 @@ function pintarPieChartGastos(lista) {
         const p = (Number(item.valor) / totalTop) * 100;
         const color = colores[index % colores.length];
         
-        // Formamos la torta
         gradientStops.push(`${color} ${currentPercent}% ${currentPercent + p}%`);
         currentPercent += p;
 
-        // Formamos la leyenda
         legendHTML += `
             <div class="legend-item">
                 <div class="legend-left">
@@ -262,7 +260,7 @@ function pintarMetaAhorro() {
     `;
 }
 
-// HISTORIAL AGRUPADO POR FECHA EXACTO A IMAGEN
+// HISTORIAL AGRUPADO POR FECHA
 function pintarHistorial() {
     const c = document.getElementById("listaMovimientos"); c.innerHTML = "";
     if (!estadoApp.ultimosMovimientos || estadoApp.ultimosMovimientos.length === 0) { c.innerHTML = `<div class="empty">No hay movimientos.</div>`; return; }

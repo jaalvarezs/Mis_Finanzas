@@ -10,6 +10,7 @@
 </head>
 <body>
     <div class="app">
+        <!-- HEADER -->
         <header class="hero">
             <div class="hero-left">
                 <img class="app-icon" src="https://drive.google.com/thumbnail?id=1mQejhLWstIc980d-lR6s8zNQS6UEBkvZ&sz=w512" alt="Icono">
@@ -21,6 +22,7 @@
             <div class="bell-icon" style="cursor:pointer;" onclick="cargarDatos()">↻</div>
         </header>
 
+        <!-- SECCIÓN 1: DASHBOARD -->
         <div id="dashboard" class="section active">
             <div class="card">
                 <div class="card-header">
@@ -36,13 +38,16 @@
                 </div>
                 
                 <h4 style="margin: 25px 0 10px; font-size: 13px; color: var(--text-muted); text-transform: uppercase;">Desglose de Gastos</h4>
+                <!-- AQUI VA EL GRÁFICO DE TORTA -->
                 <div id="pieChartGastosUI"></div>
 
                 <h4 style="margin: 35px 0 15px; font-size: 13px; color: var(--text-muted); text-transform: uppercase;">Desglose de Ahorro</h4>
+                <!-- AQUI VAN LAS BARRAS LINEALES DE AHORRO -->
                 <div id="categoriasAhorrosUI"></div>
             </div>
         </div>
 
+        <!-- SECCIÓN 2: REGISTRAR -->
         <div id="registro" class="section">
             <div class="card">
                 <h2 class="card-title" style="font-size: 22px; margin-bottom: 25px;">Añadir Transacción</h2>
@@ -73,6 +78,7 @@
                 <label class="label">Concepto</label>
                 <input type="text" id="conceptoRegistro" placeholder="Ej: Compra de alimentos...">
 
+                <!-- DISPLAY GIGANTE Y TECLADO -->
                 <label class="label">Valor ($)</label>
                 <div class="valor-display">
                     <span>$</span> <div id="pantallaValor">0</div>
@@ -93,6 +99,7 @@
             </div>
         </div>
 
+        <!-- SECCIÓN 3: CRÉDITOS -->
         <div id="creditos" class="section">
             <div class="card-header">
                 <h2 class="card-title" style="font-size: 22px;">Obligaciones Activas</h2>
@@ -113,6 +120,7 @@
             </div>
         </div>
 
+        <!-- SECCIÓN 4: META 5% -->
         <div id="reto" class="section">
             <div class="card">
                 <h2 class="card-title" style="font-size: 22px;">Meta de ahorro 5%</h2>
@@ -121,6 +129,7 @@
             </div>
         </div>
 
+        <!-- SECCIÓN 5: HISTORIAL -->
         <div id="movimientos" class="section">
             <div class="card-header" style="margin-bottom: 10px;">
                 <h2 class="card-title" style="font-size: 22px;">Últimos movimientos</h2>
@@ -129,6 +138,7 @@
         </div>
     </div>
 
+    <!-- BOTTOM NAVIGATION BAR -->
     <nav class="bottom-nav">
         <div class="nav-item active" id="nav-inicio" onclick="mostrarSeccion('dashboard', this)">
             <div class="nav-icon">📊</div><span>Inicio</span>

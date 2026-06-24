@@ -3,7 +3,7 @@ if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navi
 function actualizarEstadoRed() {
     const badge = document.getElementById('estadoConexion');
     if (navigator.onLine) {
-        badge.innerText = 'ONLINE - SINCRONIZADO'; badge.style.color = 'var(--color-blue)';
+        badge.innerText = 'ONLINE - SINCRONIZADO'; badge.style.color = 'var(--color-green)';
     } else {
         badge.innerText = 'OFFLINE - SIN CONEXIÓN'; badge.style.color = 'var(--color-red)';
     }
@@ -21,16 +21,16 @@ function mostrarSeccion(id, btn) {
 
 function formatoPesos(valor) { return Number(valor || 0).toLocaleString('es-CO'); }
 
-// ICONOS VISUALES (Basados en tu imagen)
+// ICONOS VISUALES
 function getIconUI(cat, tipo) {
     const t = cat.toLowerCase();
     if(tipo === 'Ingreso') return { i: '📈', c: 'bg-g', tc: 'text-g' };
     if(tipo === 'Ahorro') return { i: '🐷', c: 'bg-b', tc: 'text-b' };
-    if(t.includes('gemini') || t.includes('suscripción')) return { i: '📄', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('gemini') || t.includes('suscripción') || t.includes('ai')) return { i: '🤖', c: 'bg-r', tc: 'text-r' };
     if(t.includes('tarjeta') || t.includes('deuda') || t.includes('crédito')) return { i: '💳', c: 'bg-r', tc: 'text-r' };
     if(t.includes('moto') || t.includes('transporte') || t.includes('gasolina')) return { i: '🏍️', c: 'bg-r', tc: 'text-r' };
     if(t.includes('educación')) return { i: '🎓', c: 'bg-r', tc: 'text-r' };
-    if(t.includes('hogar') || t.includes('servicios') || t.includes('claro')) return { i: '🏠', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('hogar') || t.includes('servicios') || t.includes('claro') || t.includes('agua')) return { i: '🏠', c: 'bg-r', tc: 'text-r' };
     if(t.includes('mercado') || t.includes('alimentación') || t.includes('canasta')) return { i: '🛒', c: 'bg-r', tc: 'text-r' };
     if(t.includes('entretenimiento') || t.includes('juego')) return { i: '🎮', c: 'bg-r', tc: 'text-r' };
     return { i: '📝', c: 'bg-r', tc: 'text-r' };
@@ -71,36 +71,46 @@ function seleccionarTipo(tipo, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v15");
+    const cached = localStorage.getItem("finanzas_cache_v16");
     if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v15", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v16", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
 function refrescarUI() {
     pintarDashboard(); llenarSelectMeses(); cambiarMesDashboard(); pintarModuloCreditos(); pintarHistorial();
 }
 
-// DASHBOARD
+// --- DASHBOARD (SOLUCIÓN DEL DESCUADRE CON FLEX-WRAP) ---
 function pintarDashboard() {
     const m = estadoApp.resumenMes || { ingresos: 0, gastos: 0, ahorro: 0, balance: 0 };
     document.getElementById("dashboard-content").innerHTML = `
         <div class="dash-balance-box">
-            <div class="label" style="text-align: center;">Balance del Mes</div>
-            <div class="dash-balance">$ ${formatoPesos(m.balance)}</div>
+            <div class="label" style="text-align: center;">Balance del mes</div>
+            <div class="dash-balance">${m.balance < 0 ? '-' : ''}$ ${formatoPesos(Math.abs(m.balance))}</div>
         </div>
-        <div class="dash-grid">
-            <div class="dash-box" style="flex-direction: column; gap: 8px;">
-                <div style="display:flex; justify-content:space-between; width:100%;"><span class="label" style="margin:0;">Ingresos</span><span class="dash-box-icon bg-g" style="width:24px; height:24px; font-size:12px;">📈</span></div>
-                <div class="dash-box-val text-g" style="width:100%; text-align:left;">$ ${formatoPesos(m.ingresos)}</div>
+        
+        <div class="dash-summary-row">
+            <div class="dash-summary-item">
+                <div class="dash-summary-icon bg-g">💵</div>
+                <div>
+                    <div class="label" style="margin:0;">Ingresos</div>
+                    <div class="dash-summary-val text-g">$ ${formatoPesos(m.ingresos)} <span style="font-size:12px;">↗</span></div>
+                </div>
             </div>
-            <div class="dash-box" style="flex-direction: column; gap: 8px;">
-                <div style="display:flex; justify-content:space-between; width:100%;"><span class="label" style="margin:0;">Gastos</span><span class="dash-box-icon bg-r" style="width:24px; height:24px; font-size:12px;">📉</span></div>
-                <div class="dash-box-val text-r" style="width:100%; text-align:left;">$ ${formatoPesos(m.gastos)}</div>
+            <div class="dash-summary-item">
+                <div class="dash-summary-icon bg-r">💳</div>
+                <div>
+                    <div class="label" style="margin:0;">Gastos</div>
+                    <div class="dash-summary-val text-r">$ ${formatoPesos(m.gastos)} <span style="font-size:12px;">↗</span></div>
+                </div>
             </div>
-            <div class="dash-box" style="grid-column: span 2; justify-content: space-between;">
-                <div><div class="label" style="margin:0;">Ahorro</div><div class="dash-box-val text-b">$ ${formatoPesos(m.ahorro)}</div></div>
-                <div class="dash-box-icon bg-b">🐷</div>
+            <div class="dash-summary-item full">
+                <div class="dash-summary-icon bg-b">🐷</div>
+                <div>
+                    <div class="label" style="margin:0;">Ahorro</div>
+                    <div class="dash-summary-val text-b">$ ${formatoPesos(m.ahorro)} <span style="font-size:12px;">↗</span></div>
+                </div>
             </div>
         </div>
     `;
@@ -114,26 +124,74 @@ function llenarSelectMeses() {
 }
 
 function cambiarMesDashboard() {
-    pintarDistribucion("categoriasGastosUI", estadoApp.categoriasGastos, "var(--color-red)");
-    pintarDistribucion("categoriasAhorrosUI", estadoApp.categoriasAhorro, "var(--color-blue)");
+    pintarPieChartGastos(estadoApp.categoriasGastos);
+    pintarDistribucionAhorros("categoriasAhorrosUI", estadoApp.categoriasAhorro, "var(--color-blue)");
     pintarMetaAhorro(); 
 }
 
-function pintarDistribucion(id, lista, color) {
+// --- GRÁFICO DE TORTA (DONUT) PARA GASTOS ---
+function pintarPieChartGastos(lista) {
+    const cont = document.getElementById("pieChartGastosUI");
+    if (!lista || lista.length === 0) { cont.innerHTML = '<div class="empty">Sin gastos registrados.</div>'; return; }
+
+    const top = lista.slice(0, 5); // Tomamos los top 5
+    const totalTop = top.reduce((a, b) => a + Number(b.valor || 0), 0);
+    if(totalTop === 0) { cont.innerHTML = '<div class="empty">Sin gastos.</div>'; return; }
+
+    const colores = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
+    let gradientStops = [];
+    let legendHTML = "";
+    let currentPercent = 0;
+
+    top.forEach((item, index) => {
+        const p = (Number(item.valor) / totalTop) * 100;
+        const color = colores[index % colores.length];
+        
+        // Formamos la torta
+        gradientStops.push(`${color} ${currentPercent}% ${currentPercent + p}%`);
+        currentPercent += p;
+
+        // Formamos la leyenda
+        legendHTML += `
+            <div class="legend-item">
+                <div class="legend-left">
+                    <span class="legend-color" style="background:${color};"></span>
+                    <span>${item.categoria}</span>
+                </div>
+                <span class="legend-val">$ ${formatoPesos(item.valor)}</span>
+            </div>
+        `;
+    });
+
+    const conicGradient = `conic-gradient(${gradientStops.join(', ')})`;
+
+    cont.innerHTML = `
+        <div class="pie-wrapper">
+            <div class="pie-chart" style="background: ${conicGradient};">
+                <div class="pie-inner">💳</div>
+            </div>
+            <div class="pie-legend">
+                ${legendHTML}
+            </div>
+        </div>
+    `;
+}
+
+function pintarDistribucionAhorros(id, lista, color) {
     const c = document.getElementById(id); c.innerHTML = "";
     if (!lista || lista.length === 0) { c.innerHTML = '<div class="empty">Sin datos</div>'; return;}
     
-    const top = lista.slice(0, 7);
+    const top = lista.slice(0, 4);
     const total = top.reduce((a, b) => a + Number(b.valor || 0), 0);
     
     top.forEach(i => {
         const p = total > 0 ? Math.round((Number(i.valor || 0) / total) * 100) : 0;
-        const icon = getIconUI(i.categoria, color.includes('red') ? 'Gasto' : 'Ahorro').i;
+        const icon = getIconUI(i.categoria, 'Ahorro').i;
         c.innerHTML += `
             <div class="progress-item">
                 <div class="progress-head">
                     <span style="display:flex; align-items:center; gap:8px;">${icon} ${i.categoria} <span style="font-size:11px; color:var(--text-dark);">(${p}%)</span></span>
-                    <span>$ ${formatoPesos(i.valor)}</span>
+                    <span class="text-b">$ ${formatoPesos(i.valor)}</span>
                 </div>
                 <div class="progress-bg"><div class="progress-fill" style="width:${p}%; background:${color}"></div></div>
             </div>`;
@@ -142,7 +200,7 @@ function pintarDistribucion(id, lista, color) {
 
 // META 5% (CON DONUT CHART SVG VECTORIAL)
 function generarDonut(p) {
-    const stroke = 283; // 2 * pi * r (r=45)
+    const stroke = 283; 
     const offset = stroke - (stroke * (Math.min(p, 100) / 100));
     return `
     <svg class="donut-svg" viewBox="0 0 100 100">
@@ -243,7 +301,7 @@ function pintarModuloCreditos() {
         c.innerHTML += `
         <div class="card" style="padding:20px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
-                <div style="display:flex; gap:10px; align-items:center;"><div class="dash-box-icon bg-r" style="width:36px; height:36px;">🏦</div><div><div class="label" style="margin:0;">${d.entidad}</div><div style="font-weight:700; font-size:15px;">${d.nombre}</div></div></div>
+                <div style="display:flex; gap:10px; align-items:center;"><div class="dash-summary-icon bg-r">🏦</div><div><div class="label" style="margin:0;">${d.entidad}</div><div style="font-weight:700; font-size:15px;">${d.nombre}</div></div></div>
                 <div class="text-r" style="font-weight:800; font-size:16px;">$ ${formatoPesos(d.saldoActual)}</div>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted);">
@@ -255,7 +313,7 @@ function pintarModuloCreditos() {
         c.innerHTML += `
         <div class="card" style="padding:20px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
-                <div style="display:flex; gap:10px; align-items:center;"><div class="dash-box-icon bg-b" style="width:36px; height:36px;">💳</div><div><div class="label" style="margin:0;">Tarjeta de Crédito</div><div style="font-weight:700; font-size:15px;">${t.nombre}</div></div></div>
+                <div style="display:flex; gap:10px; align-items:center;"><div class="dash-summary-icon bg-b">💳</div><div><div class="label" style="margin:0;">Tarjeta de Crédito</div><div style="font-weight:700; font-size:15px;">${t.nombre}</div></div></div>
                 <div class="text-r" style="font-weight:800; font-size:16px;">$ ${formatoPesos(t.saldoActual)}</div>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted);">

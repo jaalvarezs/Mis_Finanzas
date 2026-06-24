@@ -1,388 +1,245 @@
-// --- LÓGICA DE SERVICE WORKER ---
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
-}
-
-// --- SISTEMA DE MODO DÍA Y NOCHE ---
-function initTheme() {
-    const savedTheme = localStorage.getItem('finanzas_theme') || 'dark';
-    document.body.setAttribute('data-theme', savedTheme);
-    document.getElementById('btnTheme').innerText = savedTheme === 'dark' ? '☀️' : '🌙';
-    document.getElementById('metaTheme').setAttribute('content', savedTheme === 'dark' ? '#060b19' : '#f8fafc');
-}
-
-function toggleTheme() {
-    const current = document.body.getAttribute('data-theme');
-    const newTheme = current === 'dark' ? 'light' : 'dark';
-    document.body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('finanzas_theme', newTheme);
-    document.getElementById('btnTheme').innerText = newTheme === 'dark' ? '☀️' : '🌙';
-    document.getElementById('metaTheme').setAttribute('content', newTheme === 'dark' ? '#060b19' : '#f8fafc');
-}
+if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
 
 function actualizarEstadoRed() {
     const badge = document.getElementById('estadoConexion');
     if (navigator.onLine) {
-        badge.innerText = 'Online - Sincronizado'; badge.style.color = 'var(--blue)';
+        badge.innerText = 'Online • Sincronizado'; badge.style.color = 'var(--color-green)';
     } else {
-        badge.innerText = 'Modo Offline'; badge.style.color = 'var(--red)';
+        badge.innerText = 'Offline • Sin conexión'; badge.style.color = 'var(--color-red)';
     }
 }
 window.addEventListener('online', actualizarEstadoRed);
 window.addEventListener('offline', actualizarEstadoRed);
 
-function mostrarSeccion(idSeccion, botonClicado) {
-    document.querySelectorAll(".section").forEach(sec => sec.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-    document.getElementById(idSeccion).classList.add("active");
-    botonClicado.classList.add("active");
+// NAVEGACIÓN BOTTOM BAR
+function mostrarSeccion(id, btn) {
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+    document.querySelectorAll(".nav-item").forEach(t => t.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+    if(btn) btn.classList.add("active");
 }
 
-function formatoPesos(valor) {
-    return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(valor || 0);
-}
+function formatoPesos(valor) { return Number(valor || 0).toLocaleString('es-CO'); }
 
-function mostrarMensaje(id, texto) {
-    const msj = document.getElementById(id); msj.innerText = texto; msj.style.display = "block";
-    setTimeout(() => msj.style.display = "none", 4000);
-}
-
-// DICCIONARIO DE ÍCONOS VISUALES
-function obtenerIcono(categoria, tipo) {
-    const text = categoria.toLowerCase();
-    if(tipo === 'Ingreso') return '📈';
-    if(tipo === 'Ahorro') return '🐷';
-    if(text.includes('mercado') || text.includes('canasta')) return '🛒';
-    if(text.includes('transporte') || text.includes('combustible') || text.includes('moto')) return '🏍️';
-    if(text.includes('servicios') || text.includes('claro') || text.includes('hogar')) return '🏠';
-    if(text.includes('educación') || text.includes('especialización')) return '🎓';
-    if(text.includes('salud')) return '🛡️';
-    if(text.includes('entretenimiento')) return '🎮';
-    if(text.includes('deuda') || text.includes('tarjeta') || text.includes('crédito')) return '💳';
-    if(text.includes('suscripción') || text.includes('gemini') || text.includes('ai')) return '🤖';
-    return '📝';
+// DICCIONARIO VISUAL (IMAGEN 1)
+function getIconUI(cat, tipo) {
+    const t = cat.toLowerCase();
+    if(tipo === 'Ingreso') return { i: '🏢', c: 'bg-g', tc: 'text-g' };
+    if(tipo === 'Ahorro') return { i: '🐷', c: 'bg-b', tc: 'text-b' };
+    if(t.includes('gemini') || t.includes('suscripción')) return { i: '🤖', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('tarjeta') || t.includes('deuda')) return { i: '💳', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('moto') || t.includes('transporte')) return { i: '🏍️', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('educación')) return { i: '🎓', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('hogar') || t.includes('claro') || t.includes('servicios')) return { i: '🏠', c: 'bg-r', tc: 'text-r' };
+    if(t.includes('seguro') || t.includes('póliza')) return { i: '🛡️', c: 'bg-r', tc: 'text-r' };
+    return { i: '📝', c: 'bg-r', tc: 'text-r' };
 }
 
 let estadoApp = { creditos: [], tarjetas: [], comparativoMensual: [], categoriasGastos: [], categoriasAhorro: [], ultimosMovimientos: [] };
+let tipoActualReg = "Gasto";
 
 const categoriasMenu = {
-    "Ingreso": ["Salario", "Bonificación", "Pago proveedores", "Regalo", "Venta", "Trabajo extra", "Otro ingreso"],
-    "Gasto": ["Servicios públicos", "Canasta familiar", "Deudas", "Transporte", "Combustible", "Vivienda", "Salud", "Educación", "Entretenimiento", "Otro gasto"],
-    "Ahorro": ["Ahorro personal", "Fondo de emergencia", "Inversión", "Otro ahorro"]
+    "Ingreso": ["Salario", "Pago proveedores", "Regalo", "Venta", "Otro ingreso"],
+    "Gasto": ["Servicios públicos", "Canasta familiar", "Deudas", "Transporte", "Educación", "Entretenimiento", "Otro gasto"],
+    "Ahorro": ["Ahorro personal", "Fondo de emergencia"]
 };
 
-function cambiarFormularioRegistro() {
-    const tipo = document.getElementById("tipoRegistro").value;
-    const selectCategoria = document.getElementById("categoriaRegistro");
+// TECLADO (IMAGEN 6)
+let valorTeclado = "";
+function actualizarPantallaValor() { document.getElementById("pantallaValor").innerText = valorTeclado === "" ? "0" : Number(valorTeclado).toLocaleString('es-CO'); }
+function tecla(n) { if(valorTeclado.length < 9) { valorTeclado += n; actualizarPantallaValor(); } }
+function teclaDel() { valorTeclado = valorTeclado.slice(0, -1); actualizarPantallaValor(); }
+function teclaC() { valorTeclado = ""; actualizarPantallaValor(); }
+
+function seleccionarTipo(tipo, btn) {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tipoActualReg = tipo;
+    
+    const selectCat = document.getElementById("categoriaRegistro");
     if (tipo === "Ingreso" || tipo === "Gasto" || tipo === "Ahorro") {
-        document.getElementById("grupoCategoria").style.display = "block"; 
-        document.getElementById("grupoDeudas").style.display = "none";
-        selectCategoria.innerHTML = "";
-        categoriasMenu[tipo].forEach(cat => {
-            const opt = document.createElement("option"); opt.value = cat; opt.textContent = cat; selectCategoria.appendChild(opt);
-        });
+        document.getElementById("grupoCategoria").style.display = "block"; document.getElementById("grupoDeudas").style.display = "none";
+        selectCat.innerHTML = "";
+        categoriasMenu[tipo].forEach(cat => { const opt = document.createElement("option"); opt.value = cat; opt.textContent = cat; selectCat.appendChild(opt); });
     } else {
-        document.getElementById("grupoCategoria").style.display = "none"; 
-        document.getElementById("grupoDeudas").style.display = "block";
-        document.getElementById("labelDeuda").innerText = tipo === "PagoCredito" ? "Crédito a Pagar" : "Tarjeta a Pagar/Usar";
-        llenarSelectDeudas(tipo);
+        document.getElementById("grupoCategoria").style.display = "none"; document.getElementById("grupoDeudas").style.display = "block";
+        const sd = document.getElementById("deudaSeleccionada"); sd.innerHTML = "";
+        const lista = tipo === "PagoCredito" ? estadoApp.creditos : estadoApp.tarjetas;
+        lista.forEach(i => { const o = document.createElement("option"); o.value = tipo === "PagoCredito" ? i.idCredito : i.idTarjeta; o.textContent = `${i.nombre} - $${formatoPesos(i.saldoActual)}`; sd.appendChild(o); });
     }
 }
 
 async function cargarDatos() {
-    const divDash = document.getElementById("dashboard-content");
-    const btnAct = document.querySelector(".btn-blue");
-
-    const datosGuardados = localStorage.getItem("finanzas_cache_v12");
-    if (datosGuardados) {
-        const data = JSON.parse(datosGuardados);
-        estadoApp = {
-            creditos: data.creditos || [], tarjetas: data.tarjetas || [],
-            comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
-            categoriasAhorro: data.categoriasAhorro || [], ultimosMovimientos: data.ultimosMovimientos || []
-        };
-        pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
-        pintarModuloCreditos(); pintarHistorial(); cambiarFormularioRegistro();
-    }
-
-    btnAct.innerText = "⏳"; btnAct.disabled = true;
+    const cached = localStorage.getItem("finanzas_cache_v14");
+    if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    btnAct.innerText = "↻ Actualizar"; btnAct.disabled = false;
-
-    if (!data.error) { 
-        localStorage.setItem("finanzas_cache_v12", JSON.stringify(data));
-        estadoApp = {
-            creditos: data.creditos || [], tarjetas: data.tarjetas || [],
-            comparativoMensual: data.comparativoMensual || [], categoriasGastos: data.categoriasGastos || [],
-            categoriasAhorro: data.categoriasAhorro || [], ultimosMovimientos: data.ultimosMovimientos || []
-        };
-        pintarDashboard(data); llenarSelectMeses(); cambiarMesDashboard();
-        pintarModuloCreditos(); pintarHistorial(); cambiarFormularioRegistro();
-    }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v14", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
-function pintarDashboard(data) {
-    const mes = data.resumenMes || { ingresos: 0, gastos: 0, ahorro: 0, balance: 0 };
+function refrescarUI() {
+    pintarDashboard(); llenarSelectMeses(); cambiarMesDashboard(); pintarModuloCreditos(); pintarHistorial();
+}
+
+function pintarDashboard() {
+    const m = estadoApp.resumenMes || { ingresos: 0, gastos: 0, ahorro: 0, balance: 0 };
     document.getElementById("dashboard-content").innerHTML = `
-        <div class="balance-panel">
-            <div class="label" style="margin-top:0;">Balance del Mes</div>
-            <div class="money-big">${formatoPesos(mes.balance)}</div>
+        <div class="dash-balance-box">
+            <div class="dash-label">Balance del mes</div>
+            <div class="dash-balance">$ ${formatoPesos(m.balance)}</div>
         </div>
-        <div class="stats">
-            <div class="stat"><div class="stat-icon">📈</div><div class="label" style="margin:0;">Ingresos</div><div class="stat-value green">${formatoPesos(mes.ingresos)}</div></div>
-            <div class="stat"><div class="stat-icon">📉</div><div class="label" style="margin:0;">Gastos</div><div class="stat-value red">${formatoPesos(mes.gastos)}</div></div>
-            <div class="stat" style="grid-column: span 2;"><div class="stat-icon">🐷</div><div class="label" style="margin:0;">Ahorro</div><div class="stat-value blue">${formatoPesos(mes.ahorro)}</div></div>
+        <div class="dash-grid">
+            <div class="dash-box"><div class="dash-box-icon bg-g">⬇️</div><div><div class="dash-box-title">Ingresos</div><div class="dash-box-val text-g">$ ${formatoPesos(m.ingresos)}</div></div></div>
+            <div class="dash-box"><div class="dash-box-icon bg-r">⬆️</div><div><div class="dash-box-title">Gastos</div><div class="dash-box-val text-r">$ ${formatoPesos(m.gastos)}</div></div></div>
+            <div class="dash-box" style="grid-column: span 2;"><div class="dash-box-icon bg-b">🐷</div><div><div class="dash-box-title">Ahorro del mes</div><div class="dash-box-val text-b">$ ${formatoPesos(m.ahorro)}</div></div></div>
         </div>
+        ${m.gastos > m.ingresos ? `<div class="alert-box" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); margin-top: 10px; padding: 12px;"><div class="alert-icon" style="background: var(--color-red); color: white;">⚠️</div><div><div class="alert-title" style="color: var(--color-red);">Presupuesto excedido</div><div class="alert-sub">Gastos superan ingresos en $ ${formatoPesos(m.gastos - m.ingresos)}</div></div></div>` : ''}
     `;
 }
 
 function llenarSelectMeses() {
-    const select = document.getElementById("filtroMes");
-    const valorPrevio = select.value;
-    select.innerHTML = "";
+    const s = document.getElementById("filtroMes"); s.innerHTML = "";
     if (estadoApp.comparativoMensual.length === 0) return;
-    
-    estadoApp.comparativoMensual.forEach(item => {
-        const opt = document.createElement("option"); opt.value = item.mes; opt.textContent = item.mes; select.appendChild(opt);
-    });
-    if (valorPrevio && [...select.options].some(o => o.value === valorPrevio)) { select.value = valorPrevio; } 
-    else { select.selectedIndex = select.options.length - 1; }
+    estadoApp.comparativoMensual.forEach(i => { const o = document.createElement("option"); o.value = i.mes; o.textContent = i.mes; s.appendChild(o); });
+    s.selectedIndex = s.options.length - 1;
 }
 
 function cambiarMesDashboard() {
-    pintarDistribucion("categoriasGastosUI", estadoApp.categoriasGastos, "red-bg");
-    pintarDistribucion("categoriasAhorrosUI", estadoApp.categoriasAhorro, "blue-bg");
+    pintarDistribucion("categoriasGastosUI", estadoApp.categoriasGastos, "var(--color-red)");
+    pintarDistribucion("categoriasAhorrosUI", estadoApp.categoriasAhorro, "var(--color-blue)");
     pintarMetaAhorro(); 
 }
 
-function pintarDistribucion(idContenedor, lista, claseBarra) {
-    const cont = document.getElementById(idContenedor);
-    cont.innerHTML = "";
-    if (!lista || lista.length === 0) { cont.innerHTML = `<div class="empty">Sin datos registrados.</div>`; return; }
-    
-    const total = lista.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-    lista.forEach(item => {
-        const porcentaje = total > 0 ? Math.round((Number(item.valor || 0) / total) * 100) : 0;
-        const icono = obtenerIcono(item.categoria, claseBarra.includes('red') ? 'Gasto' : 'Ahorro');
-        const div = document.createElement("div"); div.className = "bar-row";
-        div.innerHTML = `
-            <div class="bar-head">
-                <span style="color: var(--text-main); font-weight: 700;">${icono} <span style="margin-left: 5px;">${item.categoria}</span> <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">(${porcentaje}%)</span></span>
-                <span>${formatoPesos(item.valor)}</span>
-            </div>
-            <div class="bar-bg"><div class="bar ${claseBarra}" style="width:${porcentaje}%"></div></div>
-        `;
-        cont.appendChild(div);
+function pintarDistribucion(id, lista, color) {
+    const c = document.getElementById(id); c.innerHTML = "";
+    if (!lista || lista.length === 0) return;
+    const top = lista.slice(0, 5);
+    const max = Math.max(...top.map(x => Number(x.valor || 0)), 1);
+    top.forEach(i => {
+        const p = Math.round((Number(i.valor || 0) / max) * 100);
+        const icon = getIconUI(i.categoria, color.includes('red') ? 'Gasto' : 'Ahorro').i;
+        c.innerHTML += `
+            <div class="top-item">
+                <div class="top-icon">${icon}</div>
+                <div class="top-info">
+                    <div style="display:flex; justify-content:space-between;"><div class="top-name">${i.categoria}</div><div class="top-val">$ ${formatoPesos(i.valor)}</div></div>
+                    <div class="top-bar-bg"><div class="top-bar-fill" style="width:${p}%; background:${color}"></div></div>
+                </div>
+            </div>`;
     });
 }
 
-function lanzarConfeti() {
-    const colores = ['#10b981', '#0ea5e9', '#f59e0b', '#f43f5e', '#8b5cf6'];
-    for (let i = 0; i < 110; i++) {
-        const confeti = document.createElement('div');
-        confeti.classList.add('confetti');
-        confeti.style.left = Math.random() * 100 + 'vw';
-        confeti.style.backgroundColor = colores[Math.floor(Math.random() * colores.length)];
-        confeti.style.width = (Math.random() * 8 + 6) + 'px'; confeti.style.height = (Math.random() * 8 + 6) + 'px';
-        confeti.style.animationDuration = (Math.random() * 3 + 2) + 's';
-        document.body.appendChild(confeti);
-        setTimeout(() => confeti.remove(), 6000);
-    }
-}
-
-// --- ACTUALIZACIÓN: ANILLO CIRCULAR DE PROGRESO ---
+// META 5% (EXACTA IMAGEN 2 DONUT)
 function pintarMetaAhorro() {
-    const cont = document.getElementById("moduloAhorro5");
-    if (!cont) return;
+    const c = document.getElementById("moduloAhorro5");
+    const mSel = document.getElementById("filtroMes")?.value;
+    const dMes = estadoApp.comparativoMensual.find(m => m.mes === mSel) || { ingresos: 0, ahorro: 0 };
 
-    const selectMes = document.getElementById("filtroMes");
-    const mesSeleccionado = selectMes ? selectMes.value : null;
-    const datosMes = estadoApp.comparativoMensual.find(m => m.mes === mesSeleccionado) || { ingresos: 0, ahorro: 0 };
+    const iMes = dMes.ingresos || 0; const aMes = dMes.ahorro || 0;
+    const mMes = iMes * 0.05; const pMes = mMes > 0 ? Math.round((aMes / mMes) * 100) : 0;
+    const grad = Math.min(pMes, 100);
 
-    let totalIngresos = 0; let totalAhorro = 0;
-    estadoApp.comparativoMensual.forEach(m => { totalIngresos += (m.ingresos || 0); totalAhorro += (m.ahorro || 0); });
-    
-    // Cálculos del Anillo Circular (Mes)
-    const ingresosMes = datosMes.ingresos || 0;
-    const ahorroMes = datosMes.ahorro || 0;
-    const metaMes = ingresosMes * 0.05;
-    const diffMes = ahorroMes - metaMes; 
-    
-    // Evitar división por cero
-    const porcentajeMes = metaMes > 0 ? Math.round((ahorroMes / metaMes) * 100) : 0;
-    const gradosAnillo = Math.min((porcentajeMes / 100) * 360, 360); // CSS conic-gradient usa grados o %
+    let tIng = 0; let tAho = 0;
+    estadoApp.comparativoMensual.forEach(m => { tIng += (m.ingresos || 0); tAho += (m.ahorro || 0); });
+    const mTot = tIng * 0.05;
 
-    // Cálculos Históricos
-    const metaTotal = totalIngresos * 0.05;
-    const diffTotal = totalAhorro - metaTotal; 
-
-    if (totalAhorro >= 1000000 && !localStorage.getItem('confeti_1m_logrado')) {
-        localStorage.setItem('confeti_1m_logrado', 'true'); lanzarConfeti();
-    }
-
-    const META_GLOBAL = 50000000;
-    const porcentajeAvion = Math.min((totalAhorro / META_GLOBAL) * 100, 100);
-
-    cont.innerHTML = `
-        <div class="stats" style="margin-bottom: 20px;">
-            <div class="stat" style="text-align: center;"><div class="label" style="margin:0;">Ingresos Mes</div><div class="stat-value green" style="font-size: 16px;">${formatoPesos(ingresosMes)}</div></div>
-            <div class="stat" style="text-align: center;"><div class="label" style="margin:0;">Meta Ideal (5%)</div><div class="stat-value blue" style="font-size: 16px;">${formatoPesos(metaMes)}</div></div>
+    c.innerHTML = `
+        <div class="dash-grid" style="margin-bottom: 20px;">
+            <div class="dash-box" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px;"><div class="dash-box-icon bg-g" style="width: 24px; height: 24px; font-size:12px;">📈</div><div class="dash-box-title">Ingresos mes</div><div class="dash-box-val text-g">$ ${formatoPesos(iMes)}</div></div>
+            <div class="dash-box" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px;"><div class="dash-box-icon bg-b" style="width: 24px; height: 24px; font-size:12px;">🎯</div><div class="dash-box-title">Meta (5%)</div><div class="dash-box-val text-b">$ ${formatoPesos(mMes)}</div></div>
+            <div class="dash-box" style="grid-column: span 2; flex-direction: row; gap: 12px; padding: 12px;"><div class="dash-box-icon bg-g">🐷</div><div><div class="dash-box-title">Ahorro real</div><div class="dash-box-val text-g">$ ${formatoPesos(aMes)}</div></div></div>
         </div>
-        
-        <!-- ANILLO NEON DE PROGRESO -->
-        <div style="background: var(--input-bg); border-radius: 20px; padding: 25px 15px; border: 1px solid var(--card-border); margin-bottom: 25px;">
-            <div class="progress-ring-container">
-                <div class="circular-progress" style="--progress: ${Math.min(porcentajeMes, 100)}">
-                    <div class="circular-inner">
-                        <div style="font-size: 24px; color: var(--primary);">🏆</div>
-                        <div class="ring-value">${porcentajeMes}%</div>
-                        <div class="ring-label">de la meta</div>
-                    </div>
+
+        <div class="donut-container" style="--p: ${grad}%">
+            <div class="donut-ring">
+                <div class="donut-inner">
+                    <div style="color: #fbbf24; font-size: 16px; margin-bottom: 2px;">🏆</div>
+                    <div class="donut-val">${pMes}%</div>
+                    <div class="donut-lbl">de la meta</div>
                 </div>
             </div>
-            
-            <div style="text-align: center; margin-top: 15px;">
-                <div style="font-size: 13px; color: var(--text-muted);">Ahorro este mes</div>
-                <div class="money-big ${diffMes < 0 ? 'red' : 'green'}" style="font-size: 28px;">${formatoPesos(ahorroMes)}</div>
-                ${diffMes >= 0 ? `<div style="color: var(--primary); font-size: 13px; font-weight: 700; margin-top: 5px;">¡Meta superada por ${formatoPesos(diffMes)}! 💪</div>` : `<div style="color: var(--red); font-size: 13px; font-weight: 700; margin-top: 5px;">Faltan ${formatoPesos(Math.abs(diffMes))}</div>`}
+            <div class="donut-info">
+                <div class="d-title">Progreso de la meta</div>
+                <div class="d-val">$ ${formatoPesos(aMes)}</div>
+                <div class="d-title" style="margin-bottom: 8px;">Ahorro este mes <span style="float:right; color:var(--color-green); font-weight:700;">${pMes}%</span></div>
+                <div class="d-bar-bg"><div class="d-bar-fill" style="width: ${grad}%"></div></div>
+                <div class="d-meta">Meta: <span style="color:var(--color-blue);">$ ${formatoPesos(mMes)}</span></div>
             </div>
         </div>
 
-        <h4 style="margin: 30px 0 10px; font-size: 14px; text-transform: uppercase; color: var(--text-muted); text-align: center;">Resumen Histórico</h4>
-        <div class="stats" style="margin-bottom: 25px;">
-            <div class="stat"><div class="stat-icon">📊</div><div class="label" style="margin:0;">Ingresos Totales</div><div class="stat-value" style="font-size: 15px;">${formatoPesos(totalIngresos)}</div></div>
-            <div class="stat"><div class="stat-icon">🎯</div><div class="label" style="margin:0;">Meta (5%)</div><div class="stat-value blue" style="font-size: 15px;">${formatoPesos(metaTotal)}</div></div>
-            <div class="stat" style="grid-column: span 2; display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
-                <div>
-                    <div class="label" style="margin:0;">Ahorro Real</div>
-                    <div class="stat-value ${diffTotal < 0 ? 'red' : 'green'}">${formatoPesos(totalAhorro)}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div class="label" style="margin:0;">Estado</div>
-                    <div style="font-size: 13px; font-weight: 800; color: var(--${diffTotal < 0 ? 'red' : 'primary'});">${diffTotal < 0 ? 'Deuda' : 'A favor'}</div>
-                </div>
-            </div>
-        </div>
+        ${aMes >= mMes && mMes > 0 ? `<div class="alert-box"><div class="alert-icon">⭐</div><div><div class="alert-title">¡Meta superada por $ ${formatoPesos(aMes - mMes)}!</div><div class="alert-sub">Excelente trabajo, vas por muy buen camino. 💪</div></div></div>` : ''}
 
-        <h4 style="margin: 30px 0 10px; font-size: 14px; text-transform: uppercase; color: var(--text-muted); text-align: center;">🚀 Vuelo a los $50 Millones</h4>
-        <div style="background: var(--input-bg); padding: 25px 15px; border-radius: 20px; border: 1px solid var(--card-border);">
-            <div style="display:flex; justify-content: space-between; font-weight: 800; font-size: 15px;">
-                <span>Progreso Total</span><span class="blue">${porcentajeAvion.toFixed(2)}%</span>
-            </div>
-            <div class="airplane-track">
-                <div class="airplane-fill" style="width: ${porcentajeAvion}%"><div class="airplane-icon">✈️</div></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); font-weight: 700; margin-top: 10px;">
-                <span>Logrado: <strong class="green">${formatoPesos(totalAhorro)}</strong></span>
-                <span>Faltan: <strong class="red">${formatoPesos(META_GLOBAL - totalAhorro)}</strong></span>
-            </div>
+        <h4 style="font-size: 14px; margin: 25px 0 15px;">Resumen histórico acumulado</h4>
+        <div class="dash-grid">
+            <div class="dash-box" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px;"><div class="dash-box-icon bg-g" style="width: 24px; height: 24px; font-size:12px;">📊</div><div class="dash-box-title">Ingresos totales</div><div class="dash-box-val">$ ${formatoPesos(tIng)}</div></div>
+            <div class="dash-box" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px;"><div class="dash-box-icon bg-g" style="width: 24px; height: 24px; font-size:12px;">🐷</div><div class="dash-box-title">Ahorro acumulado</div><div class="dash-box-val">$ ${formatoPesos(tAho)}</div></div>
+            <div class="dash-box" style="grid-column: span 2; flex-direction: row; gap: 12px; padding: 12px;"><div class="dash-box-icon bg-b">🎯</div><div><div class="dash-box-title">Meta ideal acumulada (5%)</div><div class="dash-box-val">$ ${formatoPesos(mTot)}</div></div></div>
         </div>
     `;
 }
 
-async function procesarAhorroRapido() {
-    const valorInput = document.getElementById("valorAhorroRapido").value;
-    if (!valorInput || valorInput <= 0) { mostrarMensaje("msjAhorroRapido", "Valor inválido."); return; }
-    const btn = document.getElementById("btnAhorroRapido");
-    btn.disabled = true; btn.innerText = "...";
-    const payload = { fecha: new Date().toISOString().split('T')[0], tipo: "Ahorro", categoria: "Ahorro personal", concepto: "Abono a meta", valor: valorInput, nota: "Meta 5%" };
-    const res = await enviarDatosAPI("registrarMovimiento", payload);
-    btn.disabled = false; btn.innerText = "Abonar";
-    if (!res.error) { document.getElementById("valorAhorroRapido").value = ""; cargarDatos(); }
+// HISTORIAL AGRUPADO POR FECHA (EXACTO IMAGEN 1)
+function pintarHistorial() {
+    const c = document.getElementById("listaMovimientos");
+    if (!estadoApp.ultimosMovimientos || estadoApp.ultimosMovimientos.length === 0) { c.innerHTML = `<div class="empty">No hay movimientos.</div>`; return; }
+    
+    document.getElementById("countHistorial").innerText = `Mostrando ${estadoApp.ultimosMovimientos.length} movimientos`;
+    
+    let html = "";
+    let fechaActual = "";
+    
+    estadoApp.ultimosMovimientos.forEach(m => {
+        if (m.fechaTexto !== fechaActual) {
+            html += `<div class="date-header">🗓️ ${m.fechaTexto}</div>`;
+            fechaActual = m.fechaTexto;
+        }
+
+        let ui = getIconUI(m.categoria, m.tipo);
+        let s = m.tipo === "Ingreso" ? "+" : "-";
+        
+        html += `
+        <div class="hist-item">
+            <div class="hist-icon ${ui.c}">${ui.i}</div>
+            <div class="hist-info">
+                <div class="hist-title">${m.concepto}</div>
+                <div class="hist-cat ${ui.tc}">${m.categoria}</div>
+                <div class="hist-desc">🔒 ${m.nota || (m.tipo === "Ahorro" ? "Fondo de emergencia" : "Registro manual")}</div>
+            </div>
+            <div class="hist-right">
+                <div style="font-size:11px; color:var(--text-dark);">${m.fechaTexto.split(" ")[0]}</div>
+                <div class="hist-val ${ui.tc}">${s} $ ${formatoPesos(m.valor)}</div>
+                <div class="hist-badge" style="color:var(--text-white); border-color:var(--border-light); background:var(--bg-input);">${m.tipo}</div>
+            </div>
+        </div>`;
+    });
+    c.innerHTML = html;
 }
 
 function pintarModuloCreditos() {
-    const cont = document.getElementById("listaDeudasVigentes");
-    cont.innerHTML = "";
-    if (estadoApp.creditos.length === 0 && estadoApp.tarjetas.length === 0) { cont.innerHTML = `<div class="empty">No tienes deudas activas.</div>`; return; }
-    let html = "";
-    estadoApp.creditos.forEach(c => { 
-        html += `<div class="card" style="padding: 18px; margin-bottom: 12px;"><div class="debt-title" style="margin-bottom: 12px;"><span><span style="font-size: 20px; margin-right: 8px;">🏦</span>${c.nombre}</span><span class="red">${formatoPesos(c.saldoActual)}</span></div><div class="movement-bottom" style="display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 12px;"><span>${c.entidad}</span><span>Cuota: <strong style="color: var(--text-main); font-size: 14px;">${formatoPesos(c.cuotaActual)}</strong></span></div></div>`; 
+    const c = document.getElementById("listaDeudasVigentes"); c.innerHTML = "";
+    if (estadoApp.creditos.length === 0 && estadoApp.tarjetas.length === 0) { c.innerHTML = `<div class="empty">No hay deudas.</div>`; return; }
+    estadoApp.creditos.forEach(d => {
+        const p = Math.round((1 - (d.saldoActual / d.saldoInicial)) * 100) || 0;
+        c.innerHTML += `<div class="card" style="padding:16px; border-radius:12px;"><div class="top-item" style="margin-bottom:12px;"><div class="top-icon">🏦</div><div class="top-info"><div class="top-name">${d.entidad}</div><div style="font-size:16px; font-weight:700;">${d.nombre}</div></div></div><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span class="dash-label">Saldo pendiente</span><span class="text-r" style="font-weight:700; font-size:16px;">$ ${formatoPesos(d.saldoActual)}</span></div><div class="top-bar-bg" style="margin-bottom:4px;"><div class="top-bar-fill bg-r" style="width:${100-p}%; background:var(--color-red);"></div></div><div style="font-size:11px; color:var(--text-dark); margin-bottom:12px;">${p}% pagado</div><div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:10px; border-radius:8px; border:1px solid var(--border-light);"><div style="font-size:12px; color:var(--text-gray);">Cuota mensual<br><strong style="color:var(--color-blue); font-size:14px;">$ ${formatoPesos(d.cuotaActual)}</strong></div><div style="text-align:right; font-size:12px; color:var(--text-gray);">Próximo pago<br><strong style="color:var(--text-white); font-size:14px;">Día ${d.diaPago || '--'}</strong></div></div></div>`;
     });
-    estadoApp.tarjetas.forEach(t => { 
-        html += `<div class="card" style="padding: 18px; margin-bottom: 12px;"><div class="debt-title" style="margin-bottom: 12px;"><span><span style="font-size: 20px; margin-right: 8px;">💳</span>${t.nombre}</span><span class="red">${formatoPesos(t.saldoActual)}</span></div><div class="movement-bottom" style="display: flex; justify-content: space-between; border-top: 1px dashed var(--card-border); padding-top: 12px;"><span>Cupo: ${formatoPesos(t.cupoTotal)}</span><span>Disp: <strong class="green" style="font-size: 14px;">${formatoPesos(t.disponible)}</strong></span></div></div>`; 
-    });
-    cont.innerHTML = html;
-}
-
-// --- HISTORIAL REDISEÑADO ---
-function pintarHistorial() {
-    const cont = document.getElementById("listaMovimientos");
-    if (!cont) return;
-    if (!estadoApp.ultimosMovimientos || estadoApp.ultimosMovimientos.length === 0) { cont.innerHTML = `<div class="empty">No hay movimientos.</div>`; return; }
-    
-    let html = "";
-    estadoApp.ultimosMovimientos.forEach(m => {
-        let isIngreso = m.tipo === "Ingreso"; let isAhorro = m.tipo === "Ahorro";
-        let colorClase = isIngreso ? "green" : isAhorro ? "blue" : "red";
-        let signo = isIngreso ? "+" : "-";
-        let icono = obtenerIcono(m.categoria, m.tipo);
-
-        html += `
-        <div class="historial-item">
-            <div class="h-icon-wrap" style="color: var(--${colorClase}); border-color: rgba(var(--${colorClase}), 0.2); box-shadow: 0 2px 10px rgba(var(--${colorClase}), 0.1);">${icono}</div>
-            <div class="h-details">
-                <div class="h-title">${m.concepto}</div>
-                <div class="h-date">${m.fechaTexto} · ${m.categoria} <span class="h-badge" style="color: var(--${colorClase}); border-color: rgba(var(--${colorClase}), 0.3);">${m.tipo}</span></div>
-            </div>
-            <div class="h-amount ${colorClase}">${signo} ${formatoPesos(m.valor)}</div>
-        </div>`;
-    });
-    cont.innerHTML = html;
-}
-
-function llenarSelectDeudas(tipo) {
-    const select = document.getElementById("deudaSeleccionada"); select.innerHTML = "";
-    const lista = tipo === "PagoCredito" ? estadoApp.creditos : estadoApp.tarjetas;
-    if (lista.length === 0) { const opt = document.createElement("option"); opt.value = ""; opt.textContent = "Sin registros"; select.appendChild(opt); return; }
-    lista.forEach(item => { const opt = document.createElement("option"); opt.value = tipo === "PagoCredito" ? item.idCredito : item.idTarjeta; opt.textContent = `${item.nombre} - Saldo: ${formatoPesos(item.saldoActual)}`; select.appendChild(opt); });
 }
 
 async function procesarRegistro() {
     const btn = document.getElementById("btnGuardarRegistro");
-    const data = { fecha: document.getElementById("fechaRegistro").value, tipo: document.getElementById("tipoRegistro").value, concepto: document.getElementById("conceptoRegistro").value, valor: document.getElementById("valorRegistro").value, nota: document.getElementById("notaRegistro").value };
-    if (data.tipo === "Ingreso" || data.tipo === "Gasto" || data.tipo === "Ahorro") { data.categoria = document.getElementById("categoriaRegistro").value; } else { data.categoria = "Deudas"; data.idDeuda = document.getElementById("deudaSeleccionada").value; }
-    if (!data.fecha || !data.concepto || !data.valor) { mostrarMensaje("mensajeRegistro", "Completa fecha, concepto y valor."); return; }
+    const data = { fecha: document.getElementById("fechaRegistro").value, tipo: tipoActualReg, concepto: document.getElementById("conceptoRegistro").value, valor: valorTeclado, nota: document.getElementById("notaRegistro").value, categoria: document.getElementById("categoriaRegistro").value || "Deudas" };
+    if (!data.fecha || !data.concepto || data.valor === "") { mostrarMensaje("mensajeRegistro", "Revisa los campos y el valor."); return; }
 
     btn.disabled = true; btn.innerText = "Guardando...";
-    let action = "registrarMovimiento"; let payload = data;
-    if (data.tipo === "PagoCredito") { action = "registrarPagoCredito"; payload = { idCredito: data.idDeuda, fecha: data.fecha, valorPagado: data.valor, registrarComoGasto: true, nota: data.nota }; } 
-    else if (data.tipo === "PagoTarjeta") { action = "registrarMovimientoTarjeta"; payload = { idTarjeta: data.idDeuda, tipoMovimiento: "Pago", fecha: data.fecha, valorBase: data.valor, registrarGasto: true, nota: data.nota }; }
-
-    const res = await enviarDatosAPI(action, payload);
-    btn.disabled = false; btn.innerText = "Añadir Transacción";
+    const res = await enviarDatosAPI("registrarMovimiento", data);
+    btn.disabled = false; btn.innerText = "Guardar registro";
     mostrarMensaje("mensajeRegistro", res.mensaje);
-    if (!res.error) { document.getElementById("conceptoRegistro").value = ""; document.getElementById("valorRegistro").value = ""; document.getElementById("notaRegistro").value = ""; cargarDatos(); }
+    if (!res.error) { document.getElementById("conceptoRegistro").value = ""; teclaC(); document.getElementById("notaRegistro").value = ""; cargarDatos(); }
 }
 
-function cambiarFormularioDeuda() {
-    const tipo = document.getElementById("tipoNuevaDeuda").value;
-    document.getElementById("labelSaldoCupo").innerText = tipo === "credito" ? "Saldo Inicial" : "Cupo Total";
-}
-
-async function crearNuevaObligacion() {
-    const btn = document.getElementById("btnCrearDeuda");
-    const tipo = document.getElementById("tipoNuevaDeuda").value;
-    const banco = document.getElementById("bancoNuevaDeuda").value;
-    const nombre = document.getElementById("nombreNuevaDeuda").value;
-    const saldoCupo = document.getElementById("saldoNuevaDeuda").value;
-    const diaPago = document.getElementById("diaPagoNuevaDeuda").value;
-
-    if (!banco || !nombre || !saldoCupo) { mostrarMensaje("mensajeNuevaDeuda", "Faltan datos."); return; }
-    btn.disabled = true; btn.innerText = "Creando...";
-    let action = tipo === "credito" ? "registrarCredito" : "registrarTarjeta";
-    let payload = tipo === "credito" ? { nombre: nombre, entidad: banco, tipoCredito: "Otro", saldoActual: saldoCupo, saldoInicial: saldoCupo, diaPago: diaPago } : { nombre: nombre, banco: banco, cupoTotal: saldoCupo, saldoActual: 0, diaPago: diaPago };
-    
-    const res = await enviarDatosAPI(action, payload);
-    btn.disabled = false; btn.innerText = "Crear Obligación";
-    mostrarMensaje("mensajeNuevaDeuda", res.mensaje);
-    if (!res.error) { document.getElementById("bancoNuevaDeuda").value = ""; document.getElementById("nombreNuevaDeuda").value = ""; document.getElementById("saldoNuevaDeuda").value = ""; document.getElementById("diaPagoNuevaDeuda").value = ""; cargarDatos(); }
+function mostrarMensaje(id, texto) {
+    const m = document.getElementById(id); m.innerText = texto; m.style.display = "block"; setTimeout(() => m.style.display = "none", 4000);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    actualizarEstadoRed();
-    document.getElementById("fechaRegistro").valueAsDate = new Date();
-    cambiarFormularioRegistro();
-    cargarDatos();
+    actualizarEstadoRed(); document.getElementById("fechaRegistro").valueAsDate = new Date();
+    document.querySelector('.type-btn.active').click(); cargarDatos();
 });

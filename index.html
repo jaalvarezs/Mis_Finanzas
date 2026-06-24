@@ -6,11 +6,11 @@
     <title>Pro.Tech Finanzas</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="css/style.css">
-    <meta name="theme-color" content="#0B1121" id="metaTheme">
+    <meta name="theme-color" content="#060b19" id="metaTheme">
 </head>
 <body>
     <div class="app">
-        <!-- HEADER PREMIUM -->
+        <!-- HEADER GLASSMORPHISM -->
         <header class="hero">
             <div class="app-header">
                 <img class="app-icon" src="https://drive.google.com/thumbnail?id=1mQejhLWstIc980d-lR6s8zNQS6UEBkvZ&sz=w512" alt="Icono">
@@ -23,7 +23,7 @@
             <button class="theme-btn" onclick="toggleTheme()" id="btnTheme">☀️</button>
         </header>
 
-        <!-- TABS CON ÍCONOS -->
+        <!-- TABS NEON CON ÍCONOS -->
         <div class="tabs">
             <button class="tab active" onclick="mostrarSeccion('dashboard', this)">
                 <span class="tab-icon">📊</span><span>Inicio</span>
@@ -55,13 +55,13 @@
             <div class="card">
                 <div class="card-title">
                     <span>Análisis Mensual</span>
-                    <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; padding: 6px 10px; margin-bottom: 0; font-size: 13px; border-radius: 8px;"></select>
+                    <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; padding: 6px 12px; margin-bottom: 0; font-size: 13px; border-radius: 10px;"></select>
                 </div>
                 
-                <h4 style="margin: 15px 0 10px; font-size: 13px; color: var(--text-muted); text-transform: uppercase;">Distribución de Gastos</h4>
+                <h4 style="margin: 20px 0 12px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Desglose de Gastos</h4>
                 <div id="categoriasGastosUI"></div>
 
-                <h4 style="margin: 20px 0 10px; font-size: 13px; color: var(--text-muted); text-transform: uppercase;">Distribución de Ahorro</h4>
+                <h4 style="margin: 25px 0 12px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Desglose de Ahorro</h4>
                 <div id="categoriasAhorrosUI"></div>
             </div>
         </div>
@@ -94,7 +94,7 @@
                 </div>
 
                 <label class="label">Concepto</label>
-                <input type="text" id="conceptoRegistro" placeholder="Ej: Mercado mensual, Gasolina...">
+                <input type="text" id="conceptoRegistro" placeholder="Ej: Compra de alimentos...">
 
                 <label class="label">Valor ($)</label>
                 <input type="number" id="valorRegistro" placeholder="$ 0">
@@ -102,7 +102,7 @@
                 <label class="label">Nota (Opcional)</label>
                 <textarea id="notaRegistro" placeholder="Añade detalles aquí..."></textarea>
 
-                <button class="btn-primary" id="btnGuardarRegistro" onclick="procesarRegistro()">Guardar Registro</button>
+                <button class="btn-primary" id="btnGuardarRegistro" onclick="procesarRegistro()" style="margin-top: 10px;">Añadir Transacción</button>
                 <div class="message" id="mensajeRegistro" style="display:none; margin-top: 15px; text-align:center;"></div>
             </div>
         </div>
@@ -124,12 +124,12 @@
                 <label class="label">Entidad / Banco</label>
                 <input type="text" id="bancoNuevaDeuda" placeholder="Ej: Bancolombia">
                 <label class="label">Nombre</label>
-                <input type="text" id="nombreNuevaDeuda" placeholder="Ej: Crédito Moto">
+                <input type="text" id="nombreNuevaDeuda" placeholder="Ej: Crédito Automóvil">
                 <div class="two-cols">
                     <div><label class="label" id="labelSaldoCupo">Saldo Inicial</label><input type="number" id="saldoNuevaDeuda"></div>
                     <div><label class="label">Día pago</label><input type="number" id="diaPagoNuevaDeuda"></div>
                 </div>
-                <button class="btn-dark" id="btnCrearDeuda" onclick="crearNuevaObligacion()">Crear Obligación</button>
+                <button class="btn-dark" id="btnCrearDeuda" onclick="crearNuevaObligacion()" style="margin-top: 10px;">Crear Obligación</button>
                 <div class="message" id="mensajeNuevaDeuda"></div>
             </div>
         </div>
@@ -138,13 +138,13 @@
         <div id="reto" class="section">
             <div class="card">
                 <div class="card-title">Meta de Ahorro 5%</div>
-                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 15px;">Sistema de control de retraso real frente a tus ingresos.</p>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 15px; line-height: 1.4;">El sistema calcula automáticamente el 5% de tus ingresos y mide tu progreso frente al ahorro real.</p>
                 
-                <div style="background: var(--input-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; margin-bottom: 20px;">
-                    <label class="label" style="margin-top: 0;">⚡ Abono Rápido:</label>
-                    <div style="display: flex; gap: 8px;">
+                <div style="background: var(--input-bg); border: 1px solid var(--card-border); border-radius: 18px; padding: 16px; margin-bottom: 25px;">
+                    <label class="label" style="margin-top: 0; color: var(--blue);">⚡ Abono Rápido</label>
+                    <div style="display: flex; gap: 10px;">
                         <input type="number" id="valorAhorroRapido" placeholder="$ Valor" style="margin-bottom: 0;">
-                        <button class="btn-primary" id="btnAhorroRapido" onclick="procesarAhorroRapido()" style="width: auto;">Abonar</button>
+                        <button class="btn-blue" id="btnAhorroRapido" onclick="procesarAhorroRapido()" style="width: auto; min-width: 100px;">Abonar</button>
                     </div>
                     <div class="message" id="msjAhorroRapido"></div>
                 </div>
@@ -153,7 +153,7 @@
             </div>
         </div>
 
-        <!-- SECCIÓN 5: HISTORIAL PREMIUM -->
+        <!-- SECCIÓN 5: HISTORIAL -->
         <div id="movimientos" class="section">
             <div class="card">
                 <div class="card-title">Últimos movimientos</div>

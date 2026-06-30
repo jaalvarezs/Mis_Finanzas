@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control Financiero</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://script.google.com">
+    <link rel="preload" href="css/style.css" as="style">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css">
+    <meta name="theme-color" content="#0b1120" id="metaThemeColor">
+</head>
+<body>
+    <div class="app">
+        <!-- HEADER -->
+        <header class="hero">
+            <div class="hero-left">
+                <img class="app-icon" src="icons/icon-192.png" width="44" height="44" alt="Icono" loading="eager" fetchpriority="high">
+                <div>
+                    <h1 class="hero-title">Control Financiero</h1>
+                    <div class="hero-status" id="estadoConexion">Sincronizado</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div class="bell-icon" style="cursor:pointer;" onclick="alternarTema()" title="Cambiar modo día/noche"><i class="ti ti-moon icon" id="iconoTema" aria-hidden="true"></i></div>
+                <div class="bell-icon" style="cursor:pointer;" onclick="cargarDatos()" title="Actualizar"><i class="ti ti-refresh icon" aria-hidden="true"></i></div>
+            </div>
+        </header>
+
+        <!-- SECCIÓN 1: DASHBOARD -->
+        <div id="dashboard" class="section active">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Resumen General</span>
+                </div>
+                <div id="dashboard-content" class="empty">Cargando base de datos...</div>
+            </div>
+
+            <div class="card" id="cardProximosPagos" style="display:none;">
+                <div class="card-header">
+                    <span class="card-title">Próximos pagos</span>
+                </div>
+                <div id="proximosPagosUI"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Análisis Mensual</span>
+                    <select id="filtroMes" onchange="cambiarMesDashboard()" style="width: auto; margin: 0; padding: 8px 16px;"></select>
+                </div>
+
+                <div id="barrasMensualesUI"></div>
+                
+                <h4 style="margin: 25px 0 10px; font-size: 13px; color: var(--text-muted); text-transform: uppercase;">Desglose de Gastos</h4>
+                <!-- AQUI VA EL GRÁFICO DE TORTA -->
+                <div id="pieChartGastosUI"></div>
+
+                <h4 style="margin: 35px 0 15px; font-size: 13px; color: var(--text-muted); text-transform: uppercase;">Desglose de Ahorro</h4>
+                <!-- AQUI VAN LAS BARRAS LINEALES DE AHORRO -->
+                <div id="categoriasAhorrosUI"></div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: REGISTRAR -->
+        <div id="registro" class="section">
+            <div class="card">
+                <h2 class="card-title" style="font-size: 22px; margin-bottom: 25px;">Añadir Transacción</h2>
+                
+                <div class="type-selector" id="tipoSelectorUI">
+                    <div class="type-btn" onclick="seleccionarTipo('Ingreso', this)"><i class="ti ti-trending-up icon" aria-hidden="true"></i> Ingreso</div>
+                    <div class="type-btn active" onclick="seleccionarTipo('Gasto', this)"><i class="ti ti-trending-down icon" aria-hidden="true"></i> Gasto</div>
+                    <div class="type-btn" onclick="seleccionarTipo('Ahorro', this)"><i class="ti ti-pig icon" aria-hidden="true"></i> Ahorro</div>
+                    <div class="type-btn" onclick="seleccionarTipo('PagoCredito', this)"><i class="ti ti-credit-card icon" aria-hidden="true"></i> Crédito</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label class="label">Fecha</label>
+                        <input type="date" id="fechaRegistro">
+                    </div>
+                    <div id="grupoCategoria">
+                        <label class="label">Categoría</label>
+                        <select id="categoriaRegistro"></select>
+                    </div>
+                </div>
+
+                <div id="grupoDeudas" style="display: none;">
+                    <label class="label">Crédito o tarjeta a gestionar</label>
+                    <select id="deudaSeleccionada"></select>
+                </div>
+
+                <div id="grupoDireccionCredito" style="display: none;">
+                    <label class="label">Tipo de movimiento</label>
+                    <div class="type-selector" id="direccionCreditoUI" style="margin-bottom:20px;">
+                        <div class="type-btn active" onclick="seleccionarDireccionCredito('abono', this)"><i class="ti ti-arrow-down icon" aria-hidden="true"></i> Pago / Abono</div>
+                        <div class="type-btn" onclick="seleccionarDireccionCredito('avance', this)"><i class="ti ti-arrow-up icon" aria-hidden="true"></i> Avance / Compra</div>
+                    </div>
+                </div>
+
+                <label class="label">Concepto</label>
+                <input type="text" id="conceptoRegistro" placeholder="Ej: Compra de alimentos...">
+
+                <!-- DISPLAY GIGANTE Y TECLADO -->
+                <label class="label">Valor ($)</label>
+                <div class="valor-display">
+                    <span>$</span> <div id="pantallaValor">0</div>
+                </div>
+
+                <div class="keypad">
+                    <div class="key" onclick="tecla(1)">1</div><div class="key" onclick="tecla(2)">2</div><div class="key" onclick="tecla(3)">3</div>
+                    <div class="key" onclick="tecla(4)">4</div><div class="key" onclick="tecla(5)">5</div><div class="key" onclick="tecla(6)">6</div>
+                    <div class="key" onclick="tecla(7)">7</div><div class="key" onclick="tecla(8)">8</div><div class="key" onclick="tecla(9)">9</div>
+                    <div class="key" style="color:var(--color-red);" onclick="teclaC()">C</div><div class="key" onclick="tecla(0)">0</div><div class="key" onclick="teclaDel()">⌫</div>
+                </div>
+
+                <label class="label">Nota (opcional)</label>
+                <textarea id="notaRegistro" placeholder="Añade detalles aquí..."></textarea>
+
+                <button class="btn-main" id="btnGuardarRegistro" onclick="procesarRegistro()">Añadir Transacción</button>
+                <div class="message" id="mensajeRegistro"></div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: CRÉDITOS -->
+        <div id="creditos" class="section">
+            <div class="card-header">
+                <h2 class="card-title" style="font-size: 22px;">Obligaciones Activas</h2>
+                <span style="color:var(--color-blue); font-size:14px; font-weight:700; cursor:pointer; background: var(--bg-input); padding: 8px 12px; border-radius: 8px;" onclick="abrirNuevaObligacion()">+ Agregar</span>
+            </div>
+            <div id="listaDeudasVigentes" class="empty">Cargando portafolio...</div>
+        </div>
+        
+        <div id="formCredito" class="section">
+            <div class="card">
+                <div class="card-title" id="tituloFormCredito" style="font-size: 22px;">Nueva Obligación</div>
+                <label class="label">Tipo</label><select id="tipoNuevaDeuda" onchange="actualizarCamposObligacion()"><option value="credito">Crédito</option><option value="tarjeta">Tarjeta</option></select>
+                <label class="label" id="labelBancoNuevaDeuda">Banco</label><input type="text" id="bancoNuevaDeuda" placeholder="Ej: Bancolombia">
+                <label class="label">Nombre</label><input type="text" id="nombreNuevaDeuda" placeholder="Ej: Crédito Moto">
+                <label class="label" id="labelSaldoNuevaDeuda">Saldo Actual</label><input type="number" id="saldoNuevaDeuda">
+                <div id="grupoCupoTarjeta" style="display:none;"><label class="label">Cupo Total</label><input type="number" id="cupoNuevaDeuda"></div>
+                <div id="grupoCuotaCredito"><label class="label">Cuota mensual</label><input type="number" id="cuotaNuevaDeuda"></div>
+                <label class="label">Día de pago</label><input type="number" id="diaPagoNuevaDeuda" min="1" max="31">
+                <button class="btn-main" id="btnGuardarObligacion" onclick="guardarObligacion()">Crear Obligación</button>
+                <button class="btn-secundario" id="btnEliminarObligacion" style="display:none;" onclick="eliminarObligacionActual()">Eliminar obligación</button>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 4: META 5% -->
+        <div id="reto" class="section">
+            <div class="card">
+                <h2 class="card-title" style="font-size: 22px;">Meta de ahorro 5%</h2>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 25px; line-height: 1.5;">El sistema calcula automáticamente el 5% de tus ingresos y mide tu progreso frente al ahorro real.</p>
+                <div id="moduloAhorro5">Calculando métricas...</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 5: HISTORIAL -->
+        <div id="movimientos" class="section">
+            <div class="card-header" style="margin-bottom: 10px;">
+                <h2 class="card-title" style="font-size: 22px;">Últimos movimientos</h2>
+            </div>
+
+            <input type="text" id="histBusqueda" placeholder="Buscar por concepto, categoría o nota..." oninput="aplicarFiltrosHistorial()" style="margin-bottom:12px;">
+            <div class="hist-filtros">
+                <select id="histFiltroMes" onchange="aplicarFiltrosHistorial()"><option value="">Todos los meses</option></select>
+                <select id="histFiltroCategoria" onchange="aplicarFiltrosHistorial()"><option value="">Toda categoría</option></select>
+                <select id="histFiltroTipo" onchange="aplicarFiltrosHistorial()">
+                    <option value="">Todo tipo</option>
+                    <option value="Ingreso">Ingreso</option>
+                    <option value="Gasto">Gasto</option>
+                    <option value="Ahorro">Ahorro</option>
+                    <option value="PagoCredito">Crédito</option>
+                </select>
+            </div>
+
+            <div id="listaMovimientos" class="empty">Cargando historial...</div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION BAR -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" id="nav-inicio" onclick="mostrarSeccion('dashboard', this)">
+            <div class="nav-icon"><i class="ti ti-chart-bar" aria-hidden="true"></i></div><span>Inicio</span>
+        </div>
+        <div class="nav-item" onclick="mostrarSeccion('registro', this)">
+            <div class="nav-icon"><i class="ti ti-pencil-plus" aria-hidden="true"></i></div><span>Registrar</span>
+        </div>
+        <div class="nav-item" id="nav-creditos" onclick="mostrarSeccion('creditos', this)">
+            <div class="nav-icon"><i class="ti ti-building-bank" aria-hidden="true"></i></div><span>Créditos</span>
+        </div>
+        <div class="nav-item" onclick="mostrarSeccion('reto', this)">
+            <div class="nav-icon"><i class="ti ti-target-arrow" aria-hidden="true"></i></div><span>Meta 5%</span>
+        </div>
+        <div class="nav-item" onclick="mostrarSeccion('movimientos', this)">
+            <div class="nav-icon"><i class="ti ti-history" aria-hidden="true"></i></div><span>Historial</span>
+        </div>
+    </nav>
+
+    <script src="js/api.js" defer></script>
+    <script src="js/app.js" defer></script>
+</body>
+</html>

@@ -17,6 +17,20 @@ function actualizarEstadoRed() {
 window.addEventListener('online', () => { actualizarEstadoRed(); sincronizarPendientes().then(() => { actualizarEstadoRed(); cargarDatos(); }); });
 window.addEventListener('offline', actualizarEstadoRed);
 
+// MODO DÍA / NOCHE
+function aplicarTema(tema) {
+    document.documentElement.setAttribute('data-theme', tema);
+    localStorage.setItem('finanzas_tema', tema);
+    const meta = document.getElementById('metaThemeColor');
+    if (meta) meta.setAttribute('content', tema === 'light' ? '#f1f4f9' : '#0b1120');
+    const icono = document.getElementById('iconoTema');
+    if (icono) icono.className = tema === 'dark' ? 'ti ti-sun icon' : 'ti ti-moon icon';
+}
+function alternarTema() {
+    const actual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    aplicarTema(actual === 'light' ? 'dark' : 'light');
+}
+
 // CONTROL DE BOTTOM NAV
 function mostrarSeccion(id, btn) {
     document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
@@ -61,32 +75,43 @@ function teclaDel() { valorTeclado = valorTeclado.slice(0, -1); actualizarPantal
 function teclaC() { valorTeclado = ""; actualizarPantallaValor(); }
 
 function seleccionarTipo(tipo, btn) {
-    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.type-btn').forEach(b => { if (b.closest('#tipoSelectorUI')) b.classList.remove('active'); });
     btn.classList.add('active');
     tipoActualReg = tipo;
     
     const selectCat = document.getElementById("categoriaRegistro");
     if (tipo === "Ingreso" || tipo === "Gasto" || tipo === "Ahorro") {
-        document.getElementById("grupoCategoria").style.display = "block"; document.getElementById("grupoDeudas").style.display = "none";
+        document.getElementById("grupoCategoria").style.display = "block";
+        document.getElementById("grupoDeudas").style.display = "none";
+        document.getElementById("grupoDireccionCredito").style.display = "none";
         selectCat.innerHTML = "";
         categoriasMenu[tipo].forEach(cat => { const opt = document.createElement("option"); opt.value = cat; opt.textContent = cat; selectCat.appendChild(opt); });
     } else {
-        document.getElementById("grupoCategoria").style.display = "none"; document.getElementById("grupoDeudas").style.display = "block";
+        document.getElementById("grupoCategoria").style.display = "none";
+        document.getElementById("grupoDeudas").style.display = "block";
+        document.getElementById("grupoDireccionCredito").style.display = "block";
         const sd = document.getElementById("deudaSeleccionada"); sd.innerHTML = "";
-        const lista = tipo === "PagoCredito" ? estadoApp.creditos : estadoApp.tarjetas;
-        lista.forEach(i => { const o = document.createElement("option"); o.value = tipo === "PagoCredito" ? i.idCredito : i.idTarjeta; o.textContent = `${i.nombre} - $${formatoPesos(i.saldoActual)}`; sd.appendChild(o); });
+        estadoApp.creditos.forEach(i => { const o = document.createElement("option"); o.value = i.idCredito; o.dataset.tipoDeuda = 'credito'; o.textContent = `${i.nombre} (Crédito) · $${formatoPesos(i.saldoActual)}`; sd.appendChild(o); });
+        estadoApp.tarjetas.forEach(i => { const o = document.createElement("option"); o.value = i.idTarjeta; o.dataset.tipoDeuda = 'tarjeta'; o.textContent = `${i.nombre} (Tarjeta) · $${formatoPesos(i.saldoActual)}`; sd.appendChild(o); });
     }
 }
 
+let direccionCreditoActual = 'abono';
+function seleccionarDireccionCredito(dir, btn) {
+    document.querySelectorAll('#direccionCreditoUI .type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    direccionCreditoActual = dir;
+}
+
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v18");
+    const cached = localStorage.getItem("finanzas_cache_v20");
     if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v18", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v20", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
 function refrescarUI() {
-    pintarDashboard(); llenarSelectMeses(); cambiarMesDashboard(); pintarModuloCreditos(); pintarHistorial();
+    pintarDashboard(); pintarProximosPagos(); llenarSelectMeses(); cambiarMesDashboard(); pintarModuloCreditos(); llenarFiltrosHistorial(); pintarHistorial();
 }
 
 // --- DASHBOARD (SOLUCIÓN DEL DESCUADRE CON FLEX-WRAP) ---
@@ -97,8 +122,15 @@ function pintarDashboard() {
             <div class="label" style="text-align: center;">Balance del mes</div>
             <div class="dash-balance">${m.balance < 0 ? '-' : ''}$ ${formatoPesos(Math.abs(m.balance))}</div>
             <div class="sparkline-wrap">${generarSparkline()}</div>
+            ${generarDeltaMensual()}
         </div>
-        
+
+        <div class="quick-actions">
+            <div class="quick-action" onclick="irARegistrar('Ingreso')">${iconTag('ti-trending-up', 'font-size:18px;')}<span>Ingreso</span></div>
+            <div class="quick-action" onclick="irARegistrar('Gasto')">${iconTag('ti-trending-down', 'font-size:18px;')}<span>Gasto</span></div>
+            <div class="quick-action" onclick="irARegistrar('Ahorro')">${iconTag('ti-pig', 'font-size:18px;')}<span>Ahorro</span></div>
+        </div>
+
         <div class="dash-summary-row">
             <div class="dash-summary-item">
                 <div class="dash-summary-icon bg-g">${iconTag('ti-cash')}</div>
@@ -122,7 +154,80 @@ function pintarDashboard() {
                 </div>
             </div>
         </div>
+
+        ${generarAlertaPresupuesto(m)}
     `;
+}
+
+// El "presupuesto" del mes es el salario/ingresos del mes: alerta si los gastos ya lo superaron
+function generarAlertaPresupuesto(m) {
+    if (!m || !m.gastos || !m.ingresos || m.gastos <= m.ingresos) return '';
+    const exceso = m.gastos - m.ingresos;
+    return `
+    <div class="alert-banner">
+        ${iconTag('ti-alert-triangle', 'font-size:20px; flex-shrink:0; margin-top:2px;')}
+        <div>
+            <div class="alert-title">Estás por encima de tu presupuesto</div>
+            <div class="alert-sub">Tus gastos superan tus ingresos del mes en $ ${formatoPesos(exceso)}.</div>
+        </div>
+    </div>`;
+}
+
+function irARegistrar(tipo) {
+    mostrarSeccion('registro', null);
+    document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+    const btn = Array.from(document.querySelectorAll('#tipoSelectorUI .type-btn')).find(b => b.getAttribute('onclick').includes(`'${tipo}'`));
+    if (btn) btn.click();
+}
+
+// Compara el balance del mes actual contra el mes anterior usando datos ya cargados
+function generarDeltaMensual() {
+    const meses = estadoApp.comparativoMensual || [];
+    if (meses.length < 2) return '';
+    const calc = m => (m.ingresos || 0) - (m.gastos || 0) - (m.ahorro || 0);
+    const actual = calc(meses[meses.length - 1]);
+    const anterior = calc(meses[meses.length - 2]);
+    const delta = actual - anterior;
+    if (delta === 0) return `<div class="delta-pill">${iconTag('ti-minus', 'font-size:12px;')} Igual que el mes anterior</div>`;
+    const subio = delta > 0;
+    return `<div class="delta-pill ${subio ? 'up' : 'down'}">${iconTag(subio ? 'ti-arrow-up-right' : 'ti-arrow-down-right', 'font-size:12px;')} $ ${formatoPesos(Math.abs(delta))} vs. mes anterior</div>`;
+}
+
+// --- PRÓXIMOS PAGOS (créditos y tarjetas con día de pago próximo) ---
+function pintarProximosPagos() {
+    const card = document.getElementById('cardProximosPagos');
+    const cont = document.getElementById('proximosPagosUI');
+    const hoy = new Date();
+    const diaHoy = hoy.getDate();
+
+    const obligaciones = [
+        ...estadoApp.creditos.filter(c => c.diaPago && Number(c.saldoActual) > 0).map(c => ({ nombre: c.nombre, monto: c.cuotaActual || c.saldoActual, diaPago: Number(c.diaPago), icono: 'ti-building-bank' })),
+        ...estadoApp.tarjetas.filter(t => t.diaPago && Number(t.saldoActual) > 0).map(t => ({ nombre: t.nombre, monto: t.saldoActual, diaPago: Number(t.diaPago), icono: 'ti-credit-card' }))
+    ];
+
+    if (obligaciones.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    obligaciones.forEach(o => {
+        o.diasFaltantes = o.diaPago >= diaHoy ? (o.diaPago - diaHoy) : (o.diaPago - diaHoy + 30);
+    });
+    obligaciones.sort((a, b) => a.diasFaltantes - b.diasFaltantes);
+
+    cont.innerHTML = obligaciones.slice(0, 3).map(o => {
+        const etiqueta = o.diasFaltantes === 0 ? 'Hoy' : o.diasFaltantes === 1 ? 'Mañana' : `En ${o.diasFaltantes} días`;
+        const urgente = o.diasFaltantes <= 3;
+        return `
+        <div class="dash-box" style="margin-bottom:10px; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="dash-summary-icon ${urgente ? 'bg-a' : 'bg-b'}">${iconTag(o.icono)}</div>
+                <div>
+                    <div style="font-weight:700; font-size:14px;">${o.nombre}</div>
+                    <div class="label" style="margin:0; ${urgente ? 'color:var(--color-amber);' : ''}">${etiqueta} · día ${o.diaPago}</div>
+                </div>
+            </div>
+            <div style="font-weight:700; font-size:14px;">$ ${formatoPesos(o.monto)}</div>
+        </div>`;
+    }).join('');
 }
 
 // Mini tendencia de balance de los últimos meses disponibles (usa datos ya cargados, sin pedir nada extra al backend)
@@ -148,12 +253,48 @@ function llenarSelectMeses() {
 }
 
 function cambiarMesDashboard() {
+    document.getElementById('barrasMensualesUI').innerHTML = generarBarrasMensuales(estadoApp.comparativoMensual);
     pintarPieChartGastos(estadoApp.categoriasGastos);
     pintarDistribucionAhorros("categoriasAhorrosUI", estadoApp.categoriasAhorro, "var(--color-blue)");
     pintarMetaAhorro(); 
 }
 
-// --- DESGLOSE DE GASTOS: BARRA APILADA ---
+// Comparativo Ingresos vs Gastos de los últimos meses (SVG dibujado a mano, sin librerías)
+function generarBarrasMensuales(meses) {
+    const datos = (meses || []).slice(-6);
+    if (datos.length === 0) return '<div class="empty">Aún no hay suficiente historial.</div>';
+
+    const max = Math.max(1, ...datos.map(m => Math.max(m.ingresos || 0, m.gastos || 0)));
+    const w = 320, hBars = 105, baseY = 125;
+    const slot = w / datos.length;
+    const barW = Math.min(18, slot / 3.2);
+
+    let bars = '', labels = '';
+    datos.forEach((m, i) => {
+        const cx = slot * i + slot / 2;
+        const hIng = (Number(m.ingresos || 0) / max) * hBars;
+        const hGas = (Number(m.gastos || 0) / max) * hBars;
+        const retraso = (i * 0.06).toFixed(2);
+        bars += `<rect class="bar-animada" x="${(cx - barW - 2).toFixed(1)}" y="${(baseY - hIng).toFixed(1)}" width="${barW.toFixed(1)}" height="${hIng.toFixed(1)}" rx="3" fill="var(--color-green)" style="animation-delay:${retraso}s;"></rect>`;
+        bars += `<rect class="bar-animada" x="${(cx + 2).toFixed(1)}" y="${(baseY - hGas).toFixed(1)}" width="${barW.toFixed(1)}" height="${hGas.toFixed(1)}" rx="3" fill="var(--color-red)" style="animation-delay:${retraso}s;"></rect>`;
+        labels += `<text x="${cx.toFixed(1)}" y="${baseY + 16}" text-anchor="middle" class="chart-axis-label">${(m.mes || '').split(' ')[0].slice(0, 3)}</text>`;
+    });
+
+    return `
+    <div class="chart-wrap">
+        <div class="chart-legend-inline">
+            <span><i class="dot" style="background:var(--color-green);"></i>Ingresos</span>
+            <span><i class="dot" style="background:var(--color-red);"></i>Gastos</span>
+        </div>
+        <svg viewBox="0 0 ${w} 145" class="bar-chart-svg" role="img" aria-label="Ingresos y gastos de los últimos meses">
+            <line x1="0" y1="${baseY}" x2="${w}" y2="${baseY}" class="chart-axis-line"></line>
+            ${bars}
+            ${labels}
+        </svg>
+    </div>`;
+}
+
+// --- DESGLOSE DE GASTOS: DONUT SVG (dibujado a mano, evita el descuadre del conic-gradient original) ---
 function pintarPieChartGastos(lista) {
     const cont = document.getElementById("pieChartGastosUI");
     if (!lista || lista.length === 0) { cont.innerHTML = '<div class="empty">Sin gastos registrados.</div>'; return; }
@@ -163,31 +304,45 @@ function pintarPieChartGastos(lista) {
     if(totalTop === 0) { cont.innerHTML = '<div class="empty">Sin gastos.</div>'; return; }
 
     const colores = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
-    let barHTML = "";
     let legendHTML = "";
 
-    top.forEach((item, index) => {
-        const p = (Number(item.valor) / totalTop) * 100;
-        const color = colores[index % colores.length];
-
-        barHTML += `<div style="width:${p}%; background:${color};"></div>`;
-        legendHTML += `
-            <div class="legend-item">
-                <div class="legend-left">
-                    <span class="legend-color" style="background:${color};"></span>
-                    <span>${item.categoria}</span>
-                </div>
-                <span class="legend-val">$ ${formatoPesos(item.valor)}</span>
-            </div>
-        `;
-    });
-
     cont.innerHTML = `
-        <div class="breakdown-bar">${barHTML}</div>
+        ${generarDonutSegmentado(top, colores, 'ti-chart-pie')}
         <div class="pie-legend">
-            ${legendHTML}
+            ${top.map((item, index) => `
+                <div class="legend-item">
+                    <div class="legend-left">
+                        <span class="legend-color" style="background:${colores[index % colores.length]};"></span>
+                        <span>${item.categoria}</span>
+                    </div>
+                    <span class="legend-val">$ ${formatoPesos(item.valor)}</span>
+                </div>
+            `).join('')}
         </div>
     `;
+}
+
+// Donut multi-segmento genérico: cada segmento es un <circle> con stroke-dasharray/offset propio
+function generarDonutSegmentado(segmentos, colores, iconoCentral) {
+    const total = segmentos.reduce((a, b) => a + Number(b.valor || 0), 0);
+    if (total <= 0) return '';
+    const r = 52, c = 2 * Math.PI * r;
+    let acumulado = 0;
+    const circles = segmentos.map((s, i) => {
+        const segLen = (Number(s.valor || 0) / total) * c;
+        const offset = -acumulado;
+        acumulado += segLen;
+        return `<circle cx="70" cy="70" r="${r}" fill="none" stroke="${colores[i % colores.length]}" stroke-width="16" stroke-dasharray="${segLen.toFixed(2)} ${(c - segLen).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"></circle>`;
+    }).join('');
+
+    return `
+    <div class="donut-chart-wrap">
+        <svg viewBox="0 0 140 140" role="img" aria-label="Desglose por categoría">
+            <circle cx="70" cy="70" r="${r}" fill="none" stroke="var(--bg-input)" stroke-width="16"></circle>
+            ${circles}
+        </svg>
+        <div class="donut-text">${iconTag(iconoCentral || 'ti-chart-pie')}</div>
+    </div>`;
 }
 
 function pintarDistribucionAhorros(id, lista, color) {
@@ -218,8 +373,45 @@ function generarDonut(p) {
     return `
     <svg class="donut-svg" viewBox="0 0 100 100">
         <circle class="donut-bg" cx="50" cy="50" r="45"></circle>
-        <circle class="donut-fill" cx="50" cy="50" r="45" style="stroke-dasharray: ${stroke}; stroke-dashoffset: ${offset};"></circle>
+        <circle class="donut-fill" cx="50" cy="50" r="45" style="stroke-dasharray: ${stroke}; --arco-inicio: ${stroke}; --arco-fin: ${offset};"></circle>
     </svg>`;
+}
+
+// Evolución del ahorro real vs. la meta ideal (5%) en los últimos meses — SVG a mano, sin librerías
+function generarEvolucionAhorro(meses) {
+    const datos = (meses || []).slice(-6);
+    if (datos.length < 2) return '';
+
+    const real = datos.map(m => Number(m.ahorro) || 0);
+    const meta = datos.map(m => (Number(m.ingresos) || 0) * 0.05);
+    const max = Math.max(1, ...real, ...meta);
+    const w = 300, h = 130, pad = 10, padB = 22;
+    const plotW = w - pad * 2, plotH = h - pad - padB;
+    const x = i => pad + (datos.length === 1 ? 0 : (i / (datos.length - 1)) * plotW);
+    const y = v => pad + plotH - (v / max) * plotH;
+
+    const ptsReal = real.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const ptsMeta = meta.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    let longitudReal = 0;
+    for (let i = 1; i < real.length; i++) {
+        longitudReal += Math.hypot(x(i) - x(i - 1), y(real[i]) - y(real[i - 1]));
+    }
+    const dotsReal = real.map((v, i) => `<circle class="punto-animado" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="var(--color-green)" style="animation-delay:${(0.15 + i * 0.15).toFixed(2)}s;"></circle>`).join('');
+    const labels = datos.map((m, i) => `<text x="${x(i).toFixed(1)}" y="${h - 4}" text-anchor="middle" class="chart-axis-label">${(m.mes || '').split(' ')[0].slice(0, 3)}</text>`).join('');
+
+    return `
+    <div class="chart-wrap">
+        <div class="chart-legend-inline">
+            <span><i class="dot" style="background:var(--color-green);"></i>Ahorro real</span>
+            <span><i class="dot" style="background:var(--color-blue); opacity:0.6;"></i>Meta ideal (5%)</span>
+        </div>
+        <svg viewBox="0 0 ${w} ${h}" class="bar-chart-svg" role="img" aria-label="Evolución del ahorro real frente a la meta del 5% en los últimos meses">
+            <polyline class="linea-discontinua-animada" points="${ptsMeta}" fill="none" stroke="var(--color-blue)" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <polyline class="linea-animada" points="${ptsReal}" fill="none" stroke="var(--color-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray:${longitudReal.toFixed(1)}; stroke-dashoffset:${longitudReal.toFixed(1)};"></polyline>
+            ${dotsReal}
+            ${labels}
+        </svg>
+    </div>`;
 }
 
 function pintarMetaAhorro() {
@@ -259,7 +451,13 @@ function pintarMetaAhorro() {
             ${aMes >= mMes && mMes > 0 ? `<div style="display:inline-block; padding:8px 16px; border-radius:12px; font-size:12px; font-weight:700; color:var(--color-green); background:rgba(16,185,129,0.1); border:1px solid var(--color-green);">¡Meta superada por $ ${formatoPesos(aMes - mMes)}! 💪</div>` : ''}
         </div>
 
-        <h4 style="font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">Resumen Histórico</h4>
+        <h4 style="font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 5px;">Tus ahorros de este mes</h4>
+        <div id="ahorrosDelMesUI"></div>
+
+        <h4 style="font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 5px; margin-top: 30px;">Evolución del ahorro (últimos meses)</h4>
+        ${generarEvolucionAhorro(estadoApp.comparativoMensual) || '<div class="empty" style="margin-top:10px;">Necesitas al menos 2 meses de historial para ver la evolución.</div>'}
+
+        <h4 style="font-size: 13px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; margin-top: 30px;">Resumen Histórico</h4>
         <div class="dash-grid">
             <div class="dash-box" style="flex-direction: column; align-items: flex-start; gap: 4px;">
                 <div class="label" style="margin:0;">Ingresos Totales</div><div style="font-weight:700; font-size:16px;">$ ${formatoPesos(tIng)}</div>
@@ -273,15 +471,80 @@ function pintarMetaAhorro() {
             </div>
         </div>
     `;
+    pintarAhorrosDelMes();
 }
 
-// HISTORIAL AGRUPADO POR FECHA
+// Lista editable de los movimientos de Ahorro del mes calendario actual (toca uno para editar/eliminar)
+function pintarAhorrosDelMes() {
+    const cont = document.getElementById('ahorrosDelMesUI');
+    if (!cont) return;
+    const hoy = new Date();
+    const ahorros = (estadoApp.ultimosMovimientos || []).filter(m => {
+        if (m.tipo !== 'Ahorro' || !m.fecha) return false;
+        const f = new Date(m.fecha + 'T00:00:00');
+        return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
+    });
+
+    if (ahorros.length === 0) { cont.innerHTML = '<div class="empty" style="margin-top:0;">Aún no registras ahorros este mes.</div>'; return; }
+
+    cont.innerHTML = ahorros.map(m => `
+        <div class="hist-item" ${m.id ? `onclick="abrirAccionesMovimiento('${m.id}')"` : ''}>
+            <div class="hist-icon bg-b">${iconTag(getIconUI(m.categoria, 'Ahorro').i)}</div>
+            <div class="hist-info">
+                <div class="hist-title">${m.concepto}</div>
+                <div class="hist-cat">${m.categoria}</div>
+            </div>
+            <div class="hist-right">
+                <div class="hist-val text-b">$ ${formatoPesos(m.valor)}</div>
+            </div>
+            ${m.id ? iconTag('ti-dots-vertical', 'margin-left:4px;') : ''}
+        </div>
+    `).join('');
+}
+
+// Llena los selects de filtro del historial con los valores realmente presentes en los datos cargados
+function llenarFiltrosHistorial() {
+    const movs = estadoApp.ultimosMovimientos || [];
+
+    const selMes = document.getElementById('histFiltroMes');
+    const mesActual = selMes.value;
+    const meses = [...new Set(movs.map(m => (m.fecha || '').slice(0, 7)).filter(Boolean))].sort().reverse();
+    selMes.innerHTML = '<option value="">Todos los meses</option>' + meses.map(key => {
+        const [y, mo] = key.split('-');
+        const nombre = new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+        return `<option value="${key}">${nombre.charAt(0).toUpperCase() + nombre.slice(1)}</option>`;
+    }).join('');
+    if (meses.includes(mesActual)) selMes.value = mesActual;
+
+    const selCat = document.getElementById('histFiltroCategoria');
+    const catActual = selCat.value;
+    const categorias = [...new Set(movs.map(m => m.categoria).filter(Boolean))].sort();
+    selCat.innerHTML = '<option value="">Toda categoría</option>' + categorias.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (categorias.includes(catActual)) selCat.value = catActual;
+}
+
+// HISTORIAL AGRUPADO POR FECHA, con búsqueda + filtros de tipo/categoría/mes
 function pintarHistorial() {
     const c = document.getElementById("listaMovimientos"); c.innerHTML = "";
     if (!estadoApp.ultimosMovimientos || estadoApp.ultimosMovimientos.length === 0) { c.innerHTML = `<div class="empty">No hay movimientos.</div>`; return; }
-    
+
+    const texto = (document.getElementById('histBusqueda')?.value || '').trim().toLowerCase();
+    const fTipo = document.getElementById('histFiltroTipo')?.value || '';
+    const fCategoria = document.getElementById('histFiltroCategoria')?.value || '';
+    const fMes = document.getElementById('histFiltroMes')?.value || '';
+
+    const filtrados = estadoApp.ultimosMovimientos.filter(m => {
+        if (fTipo && m.tipo !== fTipo) return false;
+        if (fCategoria && m.categoria !== fCategoria) return false;
+        if (fMes && (m.fecha || '').slice(0, 7) !== fMes) return false;
+        if (texto && !`${m.concepto || ''} ${m.categoria || ''} ${m.nota || ''}`.toLowerCase().includes(texto)) return false;
+        return true;
+    });
+
+    if (filtrados.length === 0) { c.innerHTML = `<div class="empty">No hay movimientos que coincidan con el filtro.</div>`; return; }
+
     let html = ""; let currentGrp = "";
-    estadoApp.ultimosMovimientos.forEach(m => {
+    filtrados.forEach(m => {
         if(m.fechaTexto !== currentGrp) {
             html += `<div class="hist-date">${iconTag('ti-calendar', 'font-size:13px; vertical-align:-2px; margin-right:4px;')} ${m.fechaTexto}</div>`;
             currentGrp = m.fechaTexto;
@@ -296,8 +559,10 @@ function pintarHistorial() {
             <div class="hist-info">
                 <div class="hist-title">${m.concepto}</div>
                 <div class="hist-cat">${m.categoria}</div>
+                ${m.nota ? `<div class="hist-nota">${m.nota}</div>` : ''}
             </div>
             <div class="hist-right">
+                ${m.hora ? `<div class="hist-hora">${m.hora}</div>` : ''}
                 <div class="hist-val ${ui.tc}">${s} $ ${formatoPesos(m.valor)}</div>
                 <div class="hist-badge">${m.tipo}</div>
             </div>
@@ -306,6 +571,7 @@ function pintarHistorial() {
     });
     c.innerHTML = html;
 }
+function aplicarFiltrosHistorial() { pintarHistorial(); }
 
 let movimientoEditandoId = null;
 
@@ -358,7 +624,7 @@ function cargarMovimientoEnFormulario(m) {
     valorTeclado = String(Number(m.valor || 0));
     actualizarPantallaValor();
 
-    const btnTipo = Array.from(document.querySelectorAll('.type-btn')).find(b => b.getAttribute('onclick').includes(`'${m.tipo}'`));
+    const btnTipo = Array.from(document.querySelectorAll('#tipoSelectorUI .type-btn')).find(b => b.getAttribute('onclick').includes(`'${m.tipo}'`));
     if (btnTipo) btnTipo.click();
     if (document.getElementById('categoriaRegistro').querySelector(`option[value="${m.categoria}"]`)) {
         document.getElementById('categoriaRegistro').value = m.categoria;
@@ -406,10 +672,10 @@ function pintarModuloCreditos() {
     
     estadoApp.creditos.forEach(d => {
         c.innerHTML += `
-        <div class="card" style="padding:20px;">
+        <div class="card" style="padding:20px; cursor:pointer;" onclick="abrirAccionesObligacion('credito', '${d.idCredito}')">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
                 <div style="display:flex; gap:10px; align-items:center;"><div class="dash-summary-icon bg-r">${iconTag('ti-building-bank')}</div><div><div class="label" style="margin:0;">${d.entidad}</div><div style="font-weight:700; font-size:15px;">${d.nombre}</div></div></div>
-                <div class="text-r" style="font-weight:800; font-size:16px;">$ ${formatoPesos(d.saldoActual)}</div>
+                <div style="display:flex; align-items:center; gap:8px;"><div class="text-r" style="font-weight:800; font-size:16px;">$ ${formatoPesos(d.saldoActual)}</div>${iconTag('ti-dots-vertical')}</div>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted);">
                 <span>Cuota: <strong style="color:var(--text-main);">$ ${formatoPesos(d.cuotaActual)}</strong></span>
@@ -418,10 +684,10 @@ function pintarModuloCreditos() {
     });
     estadoApp.tarjetas.forEach(t => {
         c.innerHTML += `
-        <div class="card" style="padding:20px;">
+        <div class="card" style="padding:20px; cursor:pointer;" onclick="abrirAccionesObligacion('tarjeta', '${t.idTarjeta}')">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
                 <div style="display:flex; gap:10px; align-items:center;"><div class="dash-summary-icon bg-b">${iconTag('ti-credit-card')}</div><div><div class="label" style="margin:0;">Tarjeta de Crédito</div><div style="font-weight:700; font-size:15px;">${t.nombre}</div></div></div>
-                <div class="text-r" style="font-weight:800; font-size:16px;">$ ${formatoPesos(t.saldoActual)}</div>
+                <div style="display:flex; align-items:center; gap:8px;"><div class="text-r" style="font-weight:800; font-size:16px;">$ ${formatoPesos(t.saldoActual)}</div>${iconTag('ti-dots-vertical')}</div>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted);">
                 <span>Cupo: $ ${formatoPesos(t.cupoTotal)}</span>
@@ -431,6 +697,17 @@ function pintarModuloCreditos() {
     });
 }
 
+function abrirAccionesObligacion(tipo, id) {
+    const lista = tipo === 'credito' ? estadoApp.creditos : estadoApp.tarjetas;
+    const idKey = tipo === 'credito' ? 'idCredito' : 'idTarjeta';
+    const item = lista.find(x => String(x[idKey]) === String(id));
+    if (!item) return;
+    mostrarActionSheet(item.nombre, [
+        { label: 'Editar obligación', icon: 'ti-pencil', onClick: () => abrirEdicionObligacion(tipo, item) },
+        { label: 'Eliminar obligación', icon: 'ti-trash', danger: true, onClick: () => eliminarObligacion(tipo, id) }
+    ]);
+}
+
 async function procesarRegistro() {
     const btn = document.getElementById("btnGuardarRegistro");
     const data = { fecha: document.getElementById("fechaRegistro").value, tipo: tipoActualReg, concepto: document.getElementById("conceptoRegistro").value, valor: valorTeclado, nota: document.getElementById("notaRegistro").value, categoria: document.getElementById("categoriaRegistro").value || "Deudas" };
@@ -438,6 +715,15 @@ async function procesarRegistro() {
 
     const editando = !!movimientoEditandoId;
     if (editando) data.id = movimientoEditandoId;
+
+    if (tipoActualReg === 'PagoCredito' && !editando) {
+        const sel = document.getElementById('deudaSeleccionada');
+        const opt = sel.options[sel.selectedIndex];
+        if (!opt) { mostrarMensaje("mensajeRegistro", "Primero crea un crédito o tarjeta en la sección Créditos."); return; }
+        data.idDeuda = sel.value;
+        data.tipoDeuda = opt.dataset.tipoDeuda;
+        data.direccion = direccionCreditoActual;
+    }
 
     btn.disabled = true; btn.innerText = editando ? "Guardando cambios..." : "Guardando...";
     const res = await enviarDatosAPI(editando ? "editarMovimiento" : "registrarMovimiento", data);
@@ -453,26 +739,90 @@ async function procesarRegistro() {
     }
 }
 
-async function crearNuevaObligacion() {
+let obligacionEditando = null; // { tipo, id } o null si es creación
+
+function actualizarCamposObligacion() {
+    const esTarjeta = document.getElementById("tipoNuevaDeuda").value === 'tarjeta';
+    document.getElementById("grupoCupoTarjeta").style.display = esTarjeta ? 'block' : 'none';
+    document.getElementById("grupoCuotaCredito").style.display = esTarjeta ? 'none' : 'block';
+    document.getElementById("labelSaldoNuevaDeuda").innerText = esTarjeta ? 'Deuda actual en la tarjeta' : 'Saldo Actual';
+    document.getElementById("labelBancoNuevaDeuda").innerText = esTarjeta ? 'Banco' : 'Entidad';
+}
+
+function abrirNuevaObligacion() {
+    obligacionEditando = null;
+    document.getElementById('tituloFormCredito').innerText = 'Nueva Obligación';
+    document.getElementById('btnGuardarObligacion').innerText = 'Crear Obligación';
+    document.getElementById('btnEliminarObligacion').style.display = 'none';
+    document.getElementById('tipoNuevaDeuda').value = 'credito';
+    document.getElementById('tipoNuevaDeuda').disabled = false;
+    ['bancoNuevaDeuda', 'nombreNuevaDeuda', 'saldoNuevaDeuda', 'cupoNuevaDeuda', 'cuotaNuevaDeuda', 'diaPagoNuevaDeuda'].forEach(id => document.getElementById(id).value = '');
+    actualizarCamposObligacion();
+    mostrarSeccion('formCredito', document.getElementById('nav-creditos'));
+}
+
+function abrirEdicionObligacion(tipo, item) {
+    obligacionEditando = { tipo, id: tipo === 'credito' ? item.idCredito : item.idTarjeta };
+    document.getElementById('tituloFormCredito').innerText = 'Editar Obligación';
+    document.getElementById('btnGuardarObligacion').innerText = 'Guardar cambios';
+    document.getElementById('btnEliminarObligacion').style.display = 'block';
+    document.getElementById('tipoNuevaDeuda').value = tipo;
+    document.getElementById('tipoNuevaDeuda').disabled = true; // no cambiamos el tipo de una obligación existente
+    document.getElementById('bancoNuevaDeuda').value = tipo === 'credito' ? (item.entidad || '') : (item.banco || item.entidad || '');
+    document.getElementById('nombreNuevaDeuda').value = item.nombre || '';
+    document.getElementById('saldoNuevaDeuda').value = item.saldoActual || 0;
+    document.getElementById('cupoNuevaDeuda').value = item.cupoTotal || 0;
+    document.getElementById('cuotaNuevaDeuda').value = item.cuotaActual || 0;
+    document.getElementById('diaPagoNuevaDeuda').value = item.diaPago || '';
+    actualizarCamposObligacion();
+    mostrarSeccion('formCredito', document.getElementById('nav-creditos'));
+}
+
+async function guardarObligacion() {
     const tipo = document.getElementById("tipoNuevaDeuda").value;
     const banco = document.getElementById("bancoNuevaDeuda").value;
     const nombre = document.getElementById("nombreNuevaDeuda").value;
     const saldo = document.getElementById("saldoNuevaDeuda").value;
+    const cupo = document.getElementById("cupoNuevaDeuda").value;
+    const cuota = document.getElementById("cuotaNuevaDeuda").value;
     const dia = document.getElementById("diaPagoNuevaDeuda").value;
+    if (!banco || !nombre || saldo === "") return;
 
-    if (!banco || !nombre || !saldo) return;
-    let action = tipo === "credito" ? "registrarCredito" : "registrarTarjeta";
-    let payload = tipo === "credito" ? { nombre: nombre, entidad: banco, tipoCredito: "Otro", saldoActual: saldo, saldoInicial: saldo, diaPago: dia } : { nombre: nombre, banco: banco, cupoTotal: saldo, saldoActual: 0, diaPago: dia };
-    
-    await enviarDatosAPI(action, payload);
-    document.getElementById("bancoNuevaDeuda").value = ""; document.getElementById("nombreNuevaDeuda").value = ""; document.getElementById("saldoNuevaDeuda").value = "";
+    const editando = !!obligacionEditando;
+    let action, payload;
+    if (tipo === "credito") {
+        action = editando ? 'editarCredito' : 'registrarCredito';
+        payload = { nombre, entidad: banco, tipoCredito: "Otro", saldoActual: saldo, saldoInicial: saldo, cuotaActual: cuota, diaPago: dia };
+    } else {
+        action = editando ? 'editarTarjeta' : 'registrarTarjeta';
+        payload = { nombre, banco, cupoTotal: cupo, saldoActual: saldo, diaPago: dia };
+    }
+    if (editando) payload.id = obligacionEditando.id;
+
+    const res = await enviarDatosAPI(action, payload);
+    if (res.error) { alert(res.mensaje || 'No se pudo guardar la obligación.'); return; }
+    obligacionEditando = null;
     cargarDatos(); mostrarSeccion('creditos', document.getElementById('nav-creditos'));
+}
+
+async function eliminarObligacion(tipo, id) {
+    if (!confirm('¿Eliminar esta obligación? El historial de movimientos asociados no se borra.')) return;
+    const action = tipo === 'credito' ? 'eliminarCredito' : 'eliminarTarjeta';
+    const res = await enviarDatosAPI(action, { id });
+    if (res.error) { alert(res.mensaje || 'No se pudo eliminar.'); return; }
+    cargarDatos();
+}
+
+function eliminarObligacionActual() {
+    if (!obligacionEditando) return;
+    eliminarObligacion(obligacionEditando.tipo, obligacionEditando.id);
 }
 
 function mostrarMensaje(id, texto) { const m = document.getElementById(id); m.innerText = texto; m.style.display = "block"; setTimeout(() => m.style.display = "none", 4000); }
 
 document.addEventListener('DOMContentLoaded', () => {
+    aplicarTema(localStorage.getItem('finanzas_tema') || 'dark');
     actualizarEstadoRed(); document.getElementById("fechaRegistro").valueAsDate = new Date();
-    document.querySelector('.type-btn.active').click(); cargarDatos();
+    document.querySelector('#tipoSelectorUI .type-btn.active').click(); cargarDatos();
     if (navigator.onLine) sincronizarPendientes().then(() => { actualizarEstadoRed(); });
 });

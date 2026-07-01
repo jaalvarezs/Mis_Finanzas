@@ -1,81 +1,51 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbyKYSYLcX295yFBXTx0pYoMl-7SS_HaCHja6hEs3QH2pyKt-Wz3tlVO1KgTu8UfdpcwBA/exec';
+const CACHE_NAME = 'finanzas-cache-v23';
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './css/style.css',
+  './js/app.js',
+  './js/api.js',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+];
 
-// Acciones que MODIFICAN datos: si fallan por estar offline, se encolan de verdad
-// en lugar de perderse (antes el mensaje decía "guardado localmente" pero no se guardaba nada).
-const ACCIONES_MUTABLES = new Set(['registrarMovimiento', 'editarMovimiento', 'eliminarMovimiento', 'registrarCredito', 'editarCredito', 'eliminarCredito', 'registrarTarjeta', 'editarTarjeta', 'eliminarTarjeta']);
-const QUEUE_KEY = 'finanzas_cola_pendiente_v1';
+// Instala la nueva versión inmediatamente
+self.addEventListener('install', event => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE)));
+});
 
-function generarId() {
-    return (crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(16).slice(2));
-}
+// Borra la basura vieja (esto arreglará tu problema actual)
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
 
-function leerCola() {
-    try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch (e) { return []; }
-}
-function guardarCola(cola) { localStorage.setItem(QUEUE_KEY, JSON.stringify(cola)); }
-function contarPendientesSync() { return leerCola().length; }
+self.addEventListener('fetch', event => {
+  // Las llamadas al backend (lectura/escritura de datos) nunca se sirven desde caché
+  if (event.request.url.includes('script.google.com')) return;
 
-async function _postAPI(action, payload) {
-    const response = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: action, payload: payload }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    });
-    return await response.json();
-}
-
-async function enviarDatosAPI(action, payload) {
-    const esMutable = ACCIONES_MUTABLES.has(action);
-
-    if (esMutable && !payload.clientId) payload.clientId = generarId();
-
-    if (!navigator.onLine) {
-        if (esMutable) {
-            const cola = leerCola();
-            cola.push({ action, payload, ts: Date.now() });
-            guardarCola(cola);
-            return { error: false, queued: true, mensaje: 'Sin conexión. Se guardó y se sincronizará automáticamente.' };
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
+        // Cachea en segundo plano recursos same-origin nuevos (p. ej. íconos agregados después)
+        if (response.ok && event.request.url.startsWith(self.location.origin)) {
+          const copia = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copia));
         }
-        return { error: true, mensaje: 'Sin conexión. Mostrando los últimos datos guardados.' };
-    }
-
-    try {
-        return await _postAPI(action, payload);
-    } catch (error) {
-        console.error('Error en API:', error);
-        if (esMutable) {
-            const cola = leerCola();
-            cola.push({ action, payload, ts: Date.now() });
-            guardarCola(cola);
-            return { error: false, queued: true, mensaje: 'Error de red. Se guardó y se sincronizará automáticamente.' };
-        }
-        return { error: true, mensaje: 'Error de red. Inténtalo de nuevo.' };
-    }
-}
-
-// Se llama al recuperar conexión (evento 'online') y al iniciar la app.
-// Procesa la cola en orden y detiene en el primer fallo para no perder el resto.
-let sincronizando = false;
-async function sincronizarPendientes() {
-    if (sincronizando) return { sincronizados: 0 };
-    sincronizando = true;
-    let sincronizados = 0;
-    try {
-        let cola = leerCola();
-        while (cola.length > 0 && navigator.onLine) {
-            const item = cola[0];
-            try {
-                await _postAPI(item.action, item.payload);
-                cola.shift();
-                guardarCola(cola);
-                sincronizados++;
-            } catch (e) {
-                console.error('No se pudo sincronizar, se reintentará después:', e);
-                break;
-            }
-        }
-    } finally {
-        sincronizando = false;
-    }
-    return { sincronizados };
-}
+        return response;
+      }).catch(() => cached);
+    })
+  );
+});

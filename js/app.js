@@ -64,7 +64,7 @@ let tipoActualReg = "Gasto";
 const categoriasMenu = {
     "Ingreso": ["Salario", "Pago proveedores", "Regalo", "Venta", "Otro ingreso"],
     "Gasto": ["Servicios públicos", "Canasta familiar", "Deudas", "Transporte", "Combustible", "Vivienda", "Salud", "Educación", "Entretenimiento", "Otro gasto"],
-    "Ahorro": ["Ahorro personal", "Fondo de emergencia"]
+    "Ahorro": ["Ahorro personal", "Fondo de emergencia", "Pensión Eliana"]
 };
 
 // LÓGICA DEL TECLADO NATIVO
@@ -104,10 +104,10 @@ function seleccionarDireccionCredito(dir, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v22");
+    const cached = localStorage.getItem("finanzas_cache_v24");
     if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v22", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v24", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
 function refrescarUI() {

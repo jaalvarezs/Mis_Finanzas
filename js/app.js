@@ -104,10 +104,10 @@ function seleccionarDireccionCredito(dir, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v24");
+    const cached = localStorage.getItem("finanzas_cache_v25");
     if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v24", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v25", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
 function refrescarUI() {
@@ -666,11 +666,34 @@ function cancelarEdicion() {
     teclaC();
 }
 
+// AVISO FLOTANTE VISIBLE DESDE CUALQUIER PESTAÑA (a diferencia de #mensajeRegistro, que solo
+// se ve en la sección Registrar — antes, eliminar un movimiento desde Historial mostraba su
+// confirmación en un elemento oculto que nunca llegabas a ver).
+function mostrarToast(mensaje, tipo) {
+    document.getElementById('toastFinanzas')?.remove();
+    const t = document.createElement('div');
+    t.id = 'toastFinanzas';
+    t.className = 'toast toast-' + (tipo || 'info');
+    t.innerText = mensaje;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('visible'));
+    setTimeout(() => { t.classList.remove('visible'); setTimeout(() => t.remove(), 300); }, 4000);
+}
+
+// Muestra siempre feedback explícito, incluyendo el caso "queued" (petición diferida porque el
+// servidor no respondió) — antes ese caso quedaba en silencio y parecía que "no pasaba nada".
+function avisarResultado(res, mensajeExito) {
+    if (res.error) { mostrarToast(res.mensaje || 'Ocurrió un error.', 'error'); }
+    else if (res.queued) { mostrarToast(res.mensaje || 'No se pudo confirmar con el servidor. Se reintentará automáticamente.', 'warn'); }
+    else { mostrarToast(mensajeExito || res.mensaje || 'Listo.', 'success'); }
+    actualizarEstadoRed();
+}
+
 async function eliminarMovimiento(id) {
     if (!confirm('¿Eliminar este movimiento? Esta acción no se puede deshacer.')) return;
     const res = await enviarDatosAPI('eliminarMovimiento', { id });
-    mostrarMensaje('mensajeRegistro', res.mensaje || 'Movimiento eliminado.');
-    cargarDatos();
+    avisarResultado(res, 'Movimiento eliminado.');
+    if (!res.error) cargarDatos();
 }
 
 function pintarModuloCreditos() {
@@ -735,7 +758,7 @@ async function procesarRegistro() {
     btn.disabled = true; btn.innerText = editando ? "Guardando cambios..." : "Guardando...";
     const res = await enviarDatosAPI(editando ? "editarMovimiento" : "registrarMovimiento", data);
     btn.disabled = false;
-    mostrarMensaje("mensajeRegistro", res.mensaje);
+    avisarResultado(res, editando ? 'Movimiento actualizado.' : 'Movimiento guardado.');
     if (!res.error) {
         document.getElementById("conceptoRegistro").value = ""; teclaC(); document.getElementById("notaRegistro").value = "";
         if (editando) { movimientoEditandoId = null; mostrarBannerEdicion(false); }
@@ -807,7 +830,8 @@ async function guardarObligacion() {
     if (editando) payload.id = obligacionEditando.id;
 
     const res = await enviarDatosAPI(action, payload);
-    if (res.error) { alert(res.mensaje || 'No se pudo guardar la obligación.'); return; }
+    avisarResultado(res, editando ? 'Obligación actualizada.' : 'Obligación creada.');
+    if (res.error) return;
     obligacionEditando = null;
     cargarDatos(); mostrarSeccion('creditos', document.getElementById('nav-creditos'));
 }
@@ -816,8 +840,8 @@ async function eliminarObligacion(tipo, id) {
     if (!confirm('¿Eliminar esta obligación? El historial de movimientos asociados no se borra.')) return;
     const action = tipo === 'credito' ? 'eliminarCredito' : 'eliminarTarjeta';
     const res = await enviarDatosAPI(action, { id });
-    if (res.error) { alert(res.mensaje || 'No se pudo eliminar.'); return; }
-    cargarDatos();
+    avisarResultado(res, 'Obligación eliminada.');
+    if (!res.error) cargarDatos();
 }
 
 function eliminarObligacionActual() {

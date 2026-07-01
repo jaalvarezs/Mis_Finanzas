@@ -1,8 +1,8 @@
-const API_URL = 'https://script.google.com/macros/s/AKfycbyKYSYLcX295yFBXTx0pYoMl-7SS_HaCHja6hEs3QH2pyKt-Wz3tlVO1KgTu8UfdpcwBA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyqo7ej2BtVszPZcDUiocNT4vVMxsJpnqVznaXGRgOhvcNlUNFHAjyGDxotLc4eBRwU/exec';
 
 // Acciones que MODIFICAN datos: si fallan por estar offline, se encolan de verdad
 // en lugar de perderse (antes el mensaje decía "guardado localmente" pero no se guardaba nada).
-const ACCIONES_MUTABLES = new Set(['registrarMovimiento', 'editarMovimiento', 'eliminarMovimiento', 'registrarCredito', 'registrarTarjeta']);
+const ACCIONES_MUTABLES = new Set(['registrarMovimiento', 'editarMovimiento', 'eliminarMovimiento', 'registrarCredito', 'editarCredito', 'eliminarCredito', 'registrarTarjeta', 'editarTarjeta', 'eliminarTarjeta']);
 const QUEUE_KEY = 'finanzas_cola_pendiente_v1';
 
 function generarId() {

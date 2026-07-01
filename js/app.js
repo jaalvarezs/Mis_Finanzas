@@ -104,10 +104,10 @@ function seleccionarDireccionCredito(dir, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v20");
+    const cached = localStorage.getItem("finanzas_cache_v22");
     if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v20", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+    if (!data.error) { localStorage.setItem("finanzas_cache_v22", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
 }
 
 function refrescarUI() {
@@ -478,12 +478,18 @@ function pintarMetaAhorro() {
 function pintarAhorrosDelMes() {
     const cont = document.getElementById('ahorrosDelMesUI');
     if (!cont) return;
-    const hoy = new Date();
-    const ahorros = (estadoApp.ultimosMovimientos || []).filter(m => {
-        if (m.tipo !== 'Ahorro' || !m.fecha) return false;
-        const f = new Date(m.fecha + 'T00:00:00');
-        return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
-    });
+
+    let ahorros = estadoApp.ahorrosMesActual;
+    if (!ahorros) {
+        // Compatibilidad con un caché local viejo (antes de que el backend calculara esto aparte);
+        // se refresca solo apenas llegue la próxima respuesta del servidor.
+        const hoy = new Date();
+        ahorros = (estadoApp.ultimosMovimientos || []).filter(m => {
+            if (m.tipo !== 'Ahorro' || !m.fecha) return false;
+            const f = new Date(m.fecha + 'T00:00:00');
+            return f.getFullYear() === hoy.getFullYear() && f.getMonth() === hoy.getMonth();
+        });
+    }
 
     if (ahorros.length === 0) { cont.innerHTML = '<div class="empty" style="margin-top:0;">Aún no registras ahorros este mes.</div>'; return; }
 
@@ -576,7 +582,8 @@ function aplicarFiltrosHistorial() { pintarHistorial(); }
 let movimientoEditandoId = null;
 
 function abrirAccionesMovimiento(id) {
-    const m = (estadoApp.ultimosMovimientos || []).find(x => String(x.id) === String(id));
+    const m = (estadoApp.ultimosMovimientos || []).find(x => String(x.id) === String(id))
+        || (estadoApp.ahorrosMesActual || []).find(x => String(x.id) === String(id));
     if (!m) return;
     mostrarActionSheet(`${m.concepto} · $ ${formatoPesos(m.valor)}`, [
         { label: 'Editar movimiento', icon: 'ti-pencil', onClick: () => cargarMovimientoEnFormulario(m) },

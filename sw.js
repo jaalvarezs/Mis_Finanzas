@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finanzas-cache-v26';
+const CACHE_NAME = 'finanzas-cache-v27';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -32,8 +32,9 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Las llamadas al backend (lectura/escritura de datos) nunca se sirven desde caché
-  if (event.request.url.includes('script.google.com')) return;
+  // Las llamadas a Supabase (datos y autenticación) y a la librería externa
+  // por CDN nunca se sirven desde caché — siempre deben ir a la red.
+  if (event.request.url.includes('supabase.co') || event.request.url.includes('jsdelivr.net')) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {

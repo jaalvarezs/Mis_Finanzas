@@ -104,10 +104,28 @@ function seleccionarDireccionCredito(dir, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v25");
-    if (cached) { estadoApp = JSON.parse(cached); refrescarUI(); }
+    const cached = localStorage.getItem("finanzas_cache_v26");
+    if (cached) { try { estadoApp = JSON.parse(cached); refrescarUI(); } catch (e) { /* caché corrupto, se ignora */ } }
+
     const data = await enviarDatosAPI("obtenerDashboard", {});
-    if (!data.error) { localStorage.setItem("finanzas_cache_v25", JSON.stringify(data)); estadoApp = data; refrescarUI(); }
+
+    if (!data.error) {
+        localStorage.setItem("finanzas_cache_v26", JSON.stringify(data));
+        estadoApp = data;
+        refrescarUI();
+    } else if (!cached) {
+        // No hay nada guardado que mostrar y la carga falló: antes esto se quedaba
+        // pegado en "Cargando..." para siempre sin explicar nada.
+        document.getElementById('dashboard-content').innerHTML = `
+            <div style="text-align:center; padding:20px;">
+                <div style="color:var(--color-red); font-weight:700; margin-bottom:8px;">${iconTag('ti-alert-triangle')} No se pudo conectar con el servidor</div>
+                <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">${data.mensaje || 'Error desconocido.'}</div>
+                <div style="display:inline-block; padding:10px 20px; border-radius:12px; background:var(--color-blue); color:white; font-weight:700; cursor:pointer;" onclick="cargarDatos()">Reintentar</div>
+            </div>`;
+        mostrarToast(data.mensaje || 'No se pudo cargar la información.', 'error');
+    } else {
+        mostrarToast('No se pudo actualizar: ' + (data.mensaje || 'error de red') + '. Mostrando la última información guardada.', 'warn');
+    }
 }
 
 function refrescarUI() {

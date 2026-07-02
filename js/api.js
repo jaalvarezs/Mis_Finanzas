@@ -17,7 +17,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SUPABASE_EMAIL = 'jaalvarezs@gmail.com';
 const SUPABASE_PASSWORD = 'CL%n8@9ceej%*_L';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const NOMBRES_MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
@@ -28,9 +28,9 @@ let sesionLista = null;
 async function asegurarSesion() {
     if (sesionLista) return sesionLista;
     sesionLista = (async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await supabaseClient.auth.getSession();
         if (session) return session;
-        const { data, error } = await supabase.auth.signInWithPassword({ email: SUPABASE_EMAIL, password: SUPABASE_PASSWORD });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email: SUPABASE_EMAIL, password: SUPABASE_PASSWORD });
         if (error) throw error;
         return data.session;
     })();
@@ -137,9 +137,9 @@ async function ejecutarAccion(action, payload) {
 // ───────────────────────── DASHBOARD (cálculos que antes vivían en Apps Script) ─────────────────────────
 async function obtenerDashboard() {
     const [{ data: movimientos, error: e1 }, { data: creditosRaw, error: e2 }, { data: tarjetasRaw, error: e3 }] = await Promise.all([
-        supabase.from('movimientos').select('*'),
-        supabase.from('creditos').select('*'),
-        supabase.from('tarjetas').select('*')
+        supabaseClient.from('movimientos').select('*'),
+        supabaseClient.from('creditos').select('*'),
+        supabaseClient.from('tarjetas').select('*')
     ]);
     if (e1) throw e1; if (e2) throw e2; if (e3) throw e3;
 
@@ -263,8 +263,8 @@ async function registrarMovimiento(data) {
         return { error: true, mensaje: 'Faltan campos obligatorios.' };
     }
     const id = crypto.randomUUID();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('movimientos').insert({
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient.from('movimientos').insert({
         id, user_id: user.id, fecha: data.fecha, mes: primerDiaMes(data.fecha), tipo: data.tipo,
         categoria: data.categoria || '', concepto: data.concepto, valor: Number(data.valor),
         nota: data.nota || '', fecha_registro: new Date().toISOString()
@@ -281,16 +281,16 @@ async function registrarMovimiento(data) {
 
 async function ajustarSaldoDeuda(tipoDeuda, id, valor, direccion) {
     const tabla = tipoDeuda === 'tarjeta' ? 'tarjetas' : 'creditos';
-    const { data: fila, error: e1 } = await supabase.from(tabla).select('saldo_actual').eq('id', id).single();
+    const { data: fila, error: e1 } = await supabaseClient.from(tabla).select('saldo_actual').eq('id', id).single();
     if (e1 || !fila) throw new Error('No se encontró la obligación vinculada.');
     const nuevoSaldo = direccion === 'avance' ? (Number(fila.saldo_actual) || 0) + valor : Math.max(0, (Number(fila.saldo_actual) || 0) - valor);
-    const { error: e2 } = await supabase.from(tabla).update({ saldo_actual: nuevoSaldo, fecha_actualizacion: new Date().toISOString() }).eq('id', id);
+    const { error: e2 } = await supabaseClient.from(tabla).update({ saldo_actual: nuevoSaldo, fecha_actualizacion: new Date().toISOString() }).eq('id', id);
     if (e2) throw e2;
 }
 
 async function editarMovimiento(data) {
     if (!data.id) return { error: true, mensaje: 'Falta el ID del movimiento a editar.' };
-    const { error } = await supabase.from('movimientos').update({
+    const { error } = await supabaseClient.from('movimientos').update({
         fecha: data.fecha, mes: primerDiaMes(data.fecha), tipo: data.tipo,
         categoria: data.categoria || '', concepto: data.concepto, valor: Number(data.valor), nota: data.nota || ''
     }).eq('id', data.id);
@@ -300,7 +300,7 @@ async function editarMovimiento(data) {
 
 async function eliminarMovimiento(data) {
     if (!data.id) return { error: true, mensaje: 'Falta el ID del movimiento a eliminar.' };
-    const { error } = await supabase.from('movimientos').delete().eq('id', data.id);
+    const { error } = await supabaseClient.from('movimientos').delete().eq('id', data.id);
     if (error) throw error;
     return { error: false, mensaje: 'Movimiento eliminado.' };
 }
@@ -310,8 +310,8 @@ async function eliminarMovimiento(data) {
 async function registrarCredito(data) {
     if (!data.nombre || !data.entidad) return { error: true, mensaje: 'Faltan campos obligatorios.' };
     const id = 'CRE-' + crypto.randomUUID();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('creditos').insert({
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient.from('creditos').insert({
         id, user_id: user.id, nombre: data.nombre, entidad: data.entidad,
         saldo_actual: Number(data.saldoActual) || 0, cuota_actual: Number(data.cuotaActual) || 0,
         dia_pago: data.diaPago || '', fecha_actualizacion: new Date().toISOString()
@@ -322,7 +322,7 @@ async function registrarCredito(data) {
 
 async function editarCredito(data) {
     if (!data.id) return { error: true, mensaje: 'Falta el ID del crédito.' };
-    const { error } = await supabase.from('creditos').update({
+    const { error } = await supabaseClient.from('creditos').update({
         nombre: data.nombre, entidad: data.entidad, saldo_actual: Number(data.saldoActual) || 0,
         cuota_actual: Number(data.cuotaActual) || 0, dia_pago: data.diaPago || '', fecha_actualizacion: new Date().toISOString()
     }).eq('id', data.id);
@@ -332,7 +332,7 @@ async function editarCredito(data) {
 
 async function eliminarCredito(data) {
     if (!data.id) return { error: true, mensaje: 'Falta el ID del crédito.' };
-    const { error } = await supabase.from('creditos').delete().eq('id', data.id);
+    const { error } = await supabaseClient.from('creditos').delete().eq('id', data.id);
     if (error) throw error;
     return { error: false, mensaje: 'Crédito eliminado.' };
 }
@@ -340,8 +340,8 @@ async function eliminarCredito(data) {
 async function registrarTarjeta(data) {
     if (!data.nombre || !data.banco) return { error: true, mensaje: 'Faltan campos obligatorios.' };
     const id = 'TAR-' + crypto.randomUUID();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('tarjetas').insert({
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { error } = await supabaseClient.from('tarjetas').insert({
         id, user_id: user.id, nombre: data.nombre, banco: data.banco,
         cupo_total: Number(data.cupoTotal) || 0, saldo_actual: Number(data.saldoActual) || 0,
         dia_pago: data.diaPago || '', fecha_actualizacion: new Date().toISOString()
@@ -352,7 +352,7 @@ async function registrarTarjeta(data) {
 
 async function editarTarjeta(data) {
     if (!data.id) return { error: true, mensaje: 'Falta el ID de la tarjeta.' };
-    const { error } = await supabase.from('tarjetas').update({
+    const { error } = await supabaseClient.from('tarjetas').update({
         nombre: data.nombre, banco: data.banco, cupo_total: Number(data.cupoTotal) || 0,
         saldo_actual: Number(data.saldoActual) || 0, dia_pago: data.diaPago || '', fecha_actualizacion: new Date().toISOString()
     }).eq('id', data.id);
@@ -362,7 +362,7 @@ async function editarTarjeta(data) {
 
 async function eliminarTarjeta(data) {
     if (!data.id) return { error: true, mensaje: 'Falta el ID de la tarjeta.' };
-    const { error } = await supabase.from('tarjetas').delete().eq('id', data.id);
+    const { error } = await supabaseClient.from('tarjetas').delete().eq('id', data.id);
     if (error) throw error;
     return { error: false, mensaje: 'Tarjeta eliminada.' };
 }

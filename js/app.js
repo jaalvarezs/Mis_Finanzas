@@ -104,13 +104,13 @@ function seleccionarDireccionCredito(dir, btn) {
 }
 
 async function cargarDatos() {
-    const cached = localStorage.getItem("finanzas_cache_v27");
+    const cached = localStorage.getItem("finanzas_cache_v28");
     if (cached) { try { estadoApp = JSON.parse(cached); refrescarUI(); } catch (e) { /* caché corrupto, se ignora */ } }
 
     const data = await enviarDatosAPI("obtenerDashboard", {});
 
     if (!data.error) {
-        localStorage.setItem("finanzas_cache_v27", JSON.stringify(data));
+        localStorage.setItem("finanzas_cache_v28", JSON.stringify(data));
         estadoApp = data;
         refrescarUI();
     } else if (!cached) {
